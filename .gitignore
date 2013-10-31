@@ -1,0 +1,5 @@
+.DS_Store
+data/*
+src.srv/logs/*
+wStream.xcodeproj/project.xcworkspace/*
+wStream.xcodeproj/xcuserdata/*

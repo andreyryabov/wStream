@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+    <head>
+    </head>
+    <body>
+    Test!
+        <script type="text/javascript" src="js/mStream.js"></script>
+        <script type="text/javascript">
+
+            console.log('hello');
+    
+            var streams = new WStream('ws://127.0.0.1:8105');
+            streams.connect();
+            streams.group('group0');
+            streams.stream('stream1');
+            streams.stream('stream2');
+
+        </script>
+    </body>
+</html>
