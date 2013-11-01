@@ -6,7 +6,15 @@ var exec   = require('child_process'),
     events = require('events'),
     fs     = require('fs'),
     zmq    = require('zmq'),
-    os     = require('os');
+    os     = require('os'),
+    mpack  = require('./mpack.js');
+
+
+var MSG = '_msg_';
+var UID = 'uuid';
+
+var MSG_HALT = 1;
+var MSG_JSON = 2;
 
 function getAddressByInterface(name) {
     var iface = os.networkInterfaces()[name];
@@ -21,16 +29,16 @@ function getAddressByInterface(name) {
     throw new Error('interface does not have ip4 addres: ' + name);
 }
 
-
-var _runtimeIds = 0;
-var _runtimes   = {};
+var _runtimeIds   = 10000;
+var _id2runtime   = {};
+var _name2runtime = {};
 
 setInterval(function() {
-    for (var name in _runtimes) {
-        var rt = _runtimes[name];
+    for (var id in _id2runtime) {
+        var rt = _id2runtime[id];
         if (rt._refs == 0) {
             rt.stop();
-            delete _runtimes[name];
+            delete _name2runtime[rt._name];
         }
     }
 }, conf.refcheckInterval);
@@ -48,6 +56,33 @@ var pullPort = parseInt(rxRes[3]);
 var pullEndpoint = 'tcp://' + pullAddr + ':' + pullPort;
 
 console.log('pull endpoint: ' + pullEndpoint);
+
+pullSock.on('message', function(data) {
+    var dat = mpack.unpacker(data);
+    if (dat.get() == MSG_JSON) {
+        var obj = JSON.parse(dat.get());
+        handleJson(obj);
+    }
+});
+
+function handleJson(obj) {
+    var msg = obj[MSG], uid = obj[UID];
+    if (msg && UID) {
+        var rt = _id2runtime[uid];
+        if (!rt) {
+            console.error('runtime not found id: ' + uid);
+            return;
+        }
+        var handler = rt['msg_' + msg];
+        if (!handler) {
+            console.error('runtime handler not found for: ' + msg);
+            return;
+        }
+        handler.apply(rt, [obj]);
+        return;
+    }
+    console.error('invalid json message from transcoder', msg);
+}
 
 function Runtime(name) {
     this._name    = name;
@@ -68,19 +103,32 @@ Runtime.prototype.stop = function() {
         this._proc = null;
         setTimeout(function() { proc.kill('SIGKILL'); }, 3000);
     }
+    
+    this._pushSock.send('HALT'); // TODO: send HALT..
+    
+    if (this._pushSock) {
+        this._pushSock.close();
+        this._pushSock = null;
+    }
+    if (this._subSock) {
+        this._subSock.close();
+        this._subSock = null;
+    }
 }
 
 Runtime.prototype.start = function() {
     var self    = this;
+    var logFile = conf.logDir + '/' + this._name + '.log';
     
     this._rid   = _runtimeIds++;
     this._logId = '{cid=' + this._name + ', rid=' + this._rid + '}';
 
-    var logFile = conf.logDir + '/' + this._name + '.log';
+    _id2runtime[this._rid] = this;
     
     this._proc  = exec.execFile(conf.exec, [pullEndpoint, this._rid, logFile],
         {},
         function(error) {
+            delete _id2runtime[self._rid];
             console.log('process runtime stopped, ' + self._logId);
             if (self._stopped) {
                 return;
@@ -95,6 +143,22 @@ Runtime.prototype.start = function() {
     console.log('process runtime start, ' + self._logId + ', log file: ' + logFile);
 }
 
+Runtime.prototype.msg_started = function(obj) {
+    console.log('started ', obj);
+
+    this._pushSock = zmq.socket('push'); // this -> transcoder commands
+    this._subSock  = zmq.socket('sub');  // transcoder media   -> this
+    
+    this._pushSock.connect('tcp://' + pullAddr + ':' + obj.command.port);
+    this._subSock .connect('tcp://' + pullAddr + ':' + obj.media.port);
+    
+var sock = this._pushSock;
+setInterval(function() {
+//    console.log('send hello...' + pullAddr + ':' + obj.command.port);
+//    sock.send('hello!!!!'); // TODO:..
+}, 2500);
+
+}
 
 function Process(rt) {
     var self = this;
@@ -112,15 +176,15 @@ Process.prototype.close = function() {
 }
 
 Process.prototype.stream = function(stream) {
-    
+    //TODO:....
 }
 
 exports.open = function(name) {
-    var rt = _runtimes[name];
+    var rt = _name2runtime[name];
     if (rt == null) {
         rt = new Runtime(name);
         rt.start();
-        _runtimes[name] = rt;
+        _name2runtime[name] = rt;
     }
     rt._refs++;
     return new Process(rt);

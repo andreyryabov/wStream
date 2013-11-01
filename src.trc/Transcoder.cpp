@@ -12,6 +12,7 @@
 #include "Json.h"
 
 using namespace std;
+using namespace msgpack;
 
 namespace wStream {
 
@@ -69,33 +70,30 @@ void MainLoop::init(const ZAddr & addr, const string & uuid) {
     _pushSock.connect(toStr(addr).c_str());
 
     _pullSock.bind("tcp://*:*");
-    int cmdPort = getEndpoint(_pullSock).port;
+    _pubSock .bind("tcp://*:*");
     
-    _pubSock.bind("tcp://*:*");
+    int cmdPort = getEndpoint(_pullSock).port;
     int pubPort = getEndpoint(_pubSock).port;
     
     message("started", json("command", json("port", cmdPort), "media", json("port", pubPort)));
+    
+    Log<<"transcoder, commands port: "<<cmdPort<<", media port: "<<pubPort<<endl;
 }
 
 void MainLoop::run() {
     zmq::pollitem_t items[2] = {{_pullSock, ZMQ_POLLIN}, {_subSock, ZMQ_POLLIN}};
     try {
         while (_running) {
-            int cnt = zmq::poll(items, 2, 1000);
+            int cnt = zmq::poll(items, 2, 5000);
+Log<<"polled "<<cnt<<endl;
             if (cnt == 0) {
-                continue;
+               // continue;
             }
             if (items[0].revents | ZMQ_POLLIN) {
                 handleCommand();
             }
-            if (items[0].revents | ZMQ_POLLERR) {
-                throw Exception EX("error in command socket");
-            }
             if (items[1].revents | ZMQ_POLLIN) {
                 handleMedia();
-            }
-            if (items[1].revents | ZMQ_POLLERR) {
-                throw Exception EX("error in media socket");
             }
         }
         Log<<"event loop terminated"<<endl;
@@ -108,9 +106,13 @@ void MainLoop::message(const std::string & msg, const Json::Value & value) {
     Json::Value json = value;
     json[MSG] = msg;
     json["uuid"] = _uuid;
-    string str = json.toStyledString();
-    zmq::message_t zmsg(str.size());
-    memcpy(zmsg.data(), str.c_str(), str.size());
+    
+    sbuffer buf;
+    pack(buf, MSG_JSON);
+    pack(buf, json.toStyledString());
+    
+    zmq::message_t zmsg(buf.size());
+    memcpy(zmsg.data(), buf.data(), buf.size());
     _pushSock.send(zmsg);
 }
 
@@ -139,8 +141,7 @@ void MainLoop::handleCommandJson(const char * data, size_t size) {
     Json::Value json = parseJson(data, size);
     if (json.isMember(MSG)) {
         
-    }
-    
+    }    
 }
 
 void MainLoop::handleMedia() {

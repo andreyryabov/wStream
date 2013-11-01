@@ -55,6 +55,8 @@
 		764D60F3181FD18600E9BAB4 /* Transcoder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Transcoder.h; sourceTree = "<group>"; };
 		764D60F5182286CE00E9BAB4 /* mStream.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = mStream.js; sourceTree = "<group>"; };
 		764D60F71822C39200E9BAB4 /* zmq.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = zmq.hpp; sourceTree = "<group>"; };
+		764D60F81823D61800E9BAB4 /* package.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = package.json; sourceTree = "<group>"; };
+		764D60F91823E55A00E9BAB4 /* mpack.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = mpack.js; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -148,6 +150,8 @@
 				764D60E6181AD0CF00E9BAB4 /* _config.js */,
 				764D60E0181A6A4000E9BAB4 /* server.js */,
 				764D60E5181ACFE400E9BAB4 /* process.js */,
+				764D60F81823D61800E9BAB4 /* package.json */,
+				764D60F91823E55A00E9BAB4 /* mpack.js */,
 			);
 			path = src.srv;
 			sourceTree = "<group>";

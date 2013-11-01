@@ -28,8 +28,8 @@ int main(int argc, const char * argv[]) {
     
     openLogFile(logf);
 
-    const char * stars = "*\n*\n*\n*";
-    Log<<stars<<endl<<"* Starting id: "<<uuid<<", pushing to: "<<addr<<endl<<stars<<endl;
+    const char * stars = " *\n *\n *\n";
+    Log<<stars<<" * Starting id: "<<uuid<<", pushing to: "<<addr<<endl<<stars<<endl;
     
     try {
         MainLoop loop;
@@ -43,7 +43,7 @@ int main(int argc, const char * argv[]) {
     }    
     return -1;
 
-
+/*
     av_register_all();
     string fileName = "/Users/RKK2/workspace/wStream/data/testvid.flv";
 
@@ -106,7 +106,7 @@ int main(int argc, const char * argv[]) {
     encCtx->width     = stream->codec->width;
     encCtx->height    = stream->codec->height;
     encCtx->time_base = {1, 70};
-    encCtx->gop_size  = 20; /* emit one intra frame every ten frames */
+    encCtx->gop_size  = 20;
     encCtx->pix_fmt   = AV_PIX_FMT_YUV420P;
     encCtx->strict_std_compliance = FF_COMPLIANCE_EXPERIMENTAL;
       
@@ -174,5 +174,6 @@ int main(int argc, const char * argv[]) {
     avcodec_free_frame(&frame);
     
     return 0;
+*/
 }
 
