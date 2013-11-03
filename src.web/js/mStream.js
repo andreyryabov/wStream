@@ -1,4 +1,4 @@
-
+'use strict';
 
 function WStream(url) {
     this._url = url;
@@ -22,14 +22,14 @@ WStream.prototype.group = function(g) {
 WStream.prototype.stream = function(s) {
     for (var i = 0; i < this._streams.length; i++ ) {
         if (this._streams[i] == s) {
-            console.error('stream: ' + s + ', already in');
+            console.error('stream: ' + s + ', already on');
             return;
         }
     }
+    this._streams.push(s);
     if (!this._isConnected) {
         return;
     }
-    this._streams.push(s);
     this._sendJson({stream: this._streams[i]});
 }
 
@@ -48,6 +48,9 @@ WStream.prototype.connect = function() {
                 self._sendJson({stream: self._streams[i]});
             }
         }
+    }
+    this._socket.onmessage = function(evt) {
+        console.log('onmessage', evt.data);
     }
 }
 

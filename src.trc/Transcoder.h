@@ -10,7 +10,7 @@
 #define __wStream__Transcoder__
 
 #include "zmq.hpp"
-#include <iostream>
+#include "Common.h"
 
 namespace Json {
 class Value;
@@ -18,8 +18,9 @@ class Value;
 
 namespace wStream {
 
-static const int8_t MSG_HALT = 1;
-static const int8_t MSG_JSON = 2;
+static const int MSG_HALT = 1;
+static const int MSG_JSON = 2;
+static const int MSG_PING = 3;
 
 class ZAddr {
   public:
@@ -47,7 +48,7 @@ class MainLoop {
     void message(const std::string & message, const Json::Value &);
     
     void handleCommand();
-    void handleCommandJson(const char *, size_t);
+    void handleCommandJson(const Json::Value &);
     
     void handleMedia();
   
@@ -59,6 +60,11 @@ class MainLoop {
     
     std::string     _uuid;
     bool            _running{true};
+    
+    using Timer = std::chrono::steady_clock;
+    using Timestamp = Timer::time_point;
+    
+    Timestamp _pingTs;
 };
 
 

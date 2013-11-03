@@ -17,6 +17,7 @@
 		764D60ED181BCB8E00E9BAB4 /* Utils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 764D60EB181BCB8E00E9BAB4 /* Utils.cpp */; };
 		764D60EF181FBE2000E9BAB4 /* libjson.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 764D60EE181FBE2000E9BAB4 /* libjson.a */; };
 		764D60F4181FD18600E9BAB4 /* Transcoder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 764D60F2181FD18600E9BAB4 /* Transcoder.cpp */; };
+		764D60FB18242EFB00E9BAB4 /* libmsgpack.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 764D60FA18242EFB00E9BAB4 /* libmsgpack.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -57,6 +58,7 @@
 		764D60F71822C39200E9BAB4 /* zmq.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = zmq.hpp; sourceTree = "<group>"; };
 		764D60F81823D61800E9BAB4 /* package.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = package.json; sourceTree = "<group>"; };
 		764D60F91823E55A00E9BAB4 /* mpack.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = mpack.js; sourceTree = "<group>"; };
+		764D60FA18242EFB00E9BAB4 /* libmsgpack.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libmsgpack.a; path = ../../../../usr/local/lib/libmsgpack.a; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -64,6 +66,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				764D60FB18242EFB00E9BAB4 /* libmsgpack.a in Frameworks */,
 				764D60EF181FBE2000E9BAB4 /* libjson.a in Frameworks */,
 				764D60E9181AE25B00E9BAB4 /* libzmq.a in Frameworks */,
 				764D60CA1815C32B00E9BAB4 /* libavcodec.a in Frameworks */,
@@ -80,6 +83,7 @@
 		764D609E1815845100E9BAB4 = {
 			isa = PBXGroup;
 			children = (
+				764D60FA18242EFB00E9BAB4 /* libmsgpack.a */,
 				764D60DD181A6A4000E9BAB4 /* src.trc */,
 				764D60DF181A6A4000E9BAB4 /* src.srv */,
 				764D60D8181A6A3000E9BAB4 /* src.web */,

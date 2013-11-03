@@ -39,8 +39,9 @@ Handler.prototype._group = function(cid) {
         throw new Error('process already open');
     }
     this._proc = pc.open(cid);
-    this._proc.on('frame', function(frame) {
-        console.log('frame received', frame);
+    var self = this;
+    this._proc.on('frame', function(sid, frame) {
+        self._socket.send(JSON.stringify({frame:frame, sid:sid}));
     });
 }
 
@@ -49,6 +50,7 @@ Handler.prototype._stream = function(sid) {
         throw new Error('invalid state, process not oopen');
     }
     this._proc.stream(sid);
+    this._socket.send(JSON.stringify({streams: this._proc.streams}));
 }
 
 var processes = {};

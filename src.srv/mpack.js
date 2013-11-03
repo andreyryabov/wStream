@@ -25,4 +25,18 @@ Unpacker.prototype.get = function() {
     return msg;
 }
 
+function Packer() {
+    this._bufs = [];
+}
+
+Packer.prototype.put = function(obj) {
+    this._bufs.push(msgpack.pack(obj));
+}
+
+Packer.prototype.buffer = function() {
+    return Buffer.concat(this._bufs);
+}
+
 exports.unpacker = function(buf) { return new Unpacker(buf); }
+exports.packer   = function(buf) { return new Packer(buf);   }
+

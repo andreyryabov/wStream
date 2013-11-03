@@ -17,11 +17,23 @@ extern "C" {
 using namespace std;
 using namespace wStream;
 
+void handleSignal(int sig) {
+    Err<<"Cought signal: "<<sig<<endl;
+    Err<<backtrace()<<endl;
+    Err<<flush;
+    exit(1);
+}
+
 int main(int argc, const char * argv[]) {
+    for (int sig : { SIGSEGV, SIGTERM, SIGINT, SIGHUP}) {
+        signal(sig, handleSignal);
+    }
+
     if (argc != 4) {
         Err<<"invalid arguments, use: "<<argv[0]<<" tcp://srv:port uuid logFile.log"<<endl;
         return -1;
     }
+    
     string addr = argv[1];
     string uuid = argv[2];
     string logf = argv[3];

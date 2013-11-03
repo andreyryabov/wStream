@@ -15,6 +15,7 @@ var UID = 'uuid';
 
 var MSG_HALT = 1;
 var MSG_JSON = 2;
+var MSG_PING = 3;
 
 function getAddressByInterface(name) {
     var iface = os.networkInterfaces()[name];
@@ -29,7 +30,7 @@ function getAddressByInterface(name) {
     throw new Error('interface does not have ip4 addres: ' + name);
 }
 
-var _runtimeIds   = 10000;
+var _runtimeIds   = Math.floor((Math.random() * 1000000) + 1); 
 var _id2runtime   = {};
 var _name2runtime = {};
 
@@ -90,6 +91,9 @@ function Runtime(name) {
     this._proc    = null;
     this._logId   = name;
     this._refs    = 0;
+    this._pingTm  = null;
+    this._streams = {};
+    this._sidsGen = 1;
 }
 
 util.inherits(Runtime, events.EventEmitter);
@@ -104,8 +108,11 @@ Runtime.prototype.stop = function() {
         setTimeout(function() { proc.kill('SIGKILL'); }, 3000);
     }
     
-    this._pushSock.send('HALT'); // TODO: send HALT..
-    
+    this.message(MSG_HALT);
+    if (this._pingTm) {
+        clearInterval(this._pingTm);
+        this._pingTm = null;
+    }
     if (this._pushSock) {
         this._pushSock.close();
         this._pushSock = null;
@@ -145,25 +152,57 @@ Runtime.prototype.start = function() {
 
 Runtime.prototype.msg_started = function(obj) {
     console.log('started ', obj);
-
+    
     this._pushSock = zmq.socket('push'); // this -> transcoder commands
     this._subSock  = zmq.socket('sub');  // transcoder media   -> this
     
     this._pushSock.connect('tcp://' + pullAddr + ':' + obj.command.port);
     this._subSock .connect('tcp://' + pullAddr + ':' + obj.media.port);
     
-var sock = this._pushSock;
-setInterval(function() {
-//    console.log('send hello...' + pullAddr + ':' + obj.command.port);
-//    sock.send('hello!!!!'); // TODO:..
-}, 2500);
-
+    var self = this;
+    this._pingTm = setInterval(function() {
+        self.message(MSG_PING, '' + self._rid);
+    }, 10000);
 }
 
+Runtime.prototype.message = function(type) {
+    var pack = mpack.packer();
+    pack.put(type);
+    for (var i = 1; i < arguments.length; i++ ) {
+        pack.put(arguments[i]);
+    }
+    this._pushSock.send(pack.buffer());
+}
+
+Runtime.prototype.stream = function(stream) {
+    var sid = this._streams[stream];
+    if (sid) {
+        return sid;
+    }
+    sid = this._sidsGen++;
+    this._streams[stream] = sid;
+
+//TODO:....
+var self = this;
+setInterval(function() { self.emit('frame', sid, 'hello ' + sid + ' ' + stream); }, 2000);
+///...
+
+    return sid;
+}
+
+/**
+ * Process instance.
+ */
 function Process(rt) {
     var self = this;
+    this.streams  = {};
+    this.sids     = {};
     this._runtime = rt;
-    this._frameListener = function(frame) { self.emit('frame', frame); };
+    this._frameListener = function(sid, frame) {
+        if (self.sids[sid]) {
+            self.emit('frame', sid, frame);
+        }
+    };
     rt.on('frame', this._frameListener);
 }
 
@@ -176,7 +215,9 @@ Process.prototype.close = function() {
 }
 
 Process.prototype.stream = function(stream) {
-    //TODO:....
+    var sid = this._runtime.stream(stream);
+    this.streams[stream] = sid;
+    this.sids[sid] = stream;
 }
 
 exports.open = function(name) {
