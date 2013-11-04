@@ -34,9 +34,9 @@ int main(int argc, const char * argv[]) {
         return -1;
     }
     
-    string addr = argv[1];
-    string uuid = argv[2];
-    string logf = argv[3];
+    string  addr = argv[1];
+    string  logf = argv[3];
+    int64_t uuid = stol(argv[2]);
     
     openLogFile(logf);
 

@@ -18,6 +18,7 @@
 		764D60EF181FBE2000E9BAB4 /* libjson.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 764D60EE181FBE2000E9BAB4 /* libjson.a */; };
 		764D60F4181FD18600E9BAB4 /* Transcoder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 764D60F2181FD18600E9BAB4 /* Transcoder.cpp */; };
 		764D60FB18242EFB00E9BAB4 /* libmsgpack.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 764D60FA18242EFB00E9BAB4 /* libmsgpack.a */; };
+		764D60FD1826C34200E9BAB4 /* msgpack.js in Sources */ = {isa = PBXBuildFile; fileRef = 764D60FC1826C34200E9BAB4 /* msgpack.js */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -59,6 +60,8 @@
 		764D60F81823D61800E9BAB4 /* package.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = package.json; sourceTree = "<group>"; };
 		764D60F91823E55A00E9BAB4 /* mpack.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = mpack.js; sourceTree = "<group>"; };
 		764D60FA18242EFB00E9BAB4 /* libmsgpack.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libmsgpack.a; path = ../../../../usr/local/lib/libmsgpack.a; sourceTree = "<group>"; };
+		764D60FC1826C34200E9BAB4 /* msgpack.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = msgpack.js; sourceTree = "<group>"; };
+		764D60FE182778F400E9BAB4 /* MPack.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MPack.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -127,6 +130,7 @@
 			isa = PBXGroup;
 			children = (
 				764D60E3181A6D8200E9BAB4 /* mpeg.js */,
+				764D60FC1826C34200E9BAB4 /* msgpack.js */,
 				764D60F5182286CE00E9BAB4 /* mStream.js */,
 			);
 			path = js;
@@ -144,6 +148,7 @@
 				764D60DE181A6A4000E9BAB4 /* main.cpp */,
 				764D60F2181FD18600E9BAB4 /* Transcoder.cpp */,
 				764D60F3181FD18600E9BAB4 /* Transcoder.h */,
+				764D60FE182778F400E9BAB4 /* MPack.h */,
 			);
 			path = src.trc;
 			sourceTree = "<group>";
@@ -151,10 +156,10 @@
 		764D60DF181A6A4000E9BAB4 /* src.srv */ = {
 			isa = PBXGroup;
 			children = (
+				764D60F81823D61800E9BAB4 /* package.json */,
 				764D60E6181AD0CF00E9BAB4 /* _config.js */,
 				764D60E0181A6A4000E9BAB4 /* server.js */,
 				764D60E5181ACFE400E9BAB4 /* process.js */,
-				764D60F81823D61800E9BAB4 /* package.json */,
 				764D60F91823E55A00E9BAB4 /* mpack.js */,
 			);
 			path = src.srv;
@@ -214,6 +219,7 @@
 				764D60E1181A6A4000E9BAB4 /* main.cpp in Sources */,
 				764D60ED181BCB8E00E9BAB4 /* Utils.cpp in Sources */,
 				764D60F4181FD18600E9BAB4 /* Transcoder.cpp in Sources */,
+				764D60FD1826C34200E9BAB4 /* msgpack.js in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

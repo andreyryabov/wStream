@@ -1,21 +1,22 @@
 'use strict';
  
 var exec   = require('child_process'),
-    conf   = require('./_config.js').transcoder,
     util   = require('util'),
     events = require('events'),
     fs     = require('fs'),
     zmq    = require('zmq'),
     os     = require('os'),
+    conf   = require('./_config.js').transcoder,
     mpack  = require('./mpack.js');
 
 
 var MSG = '_msg_';
 var UID = 'uuid';
 
-var MSG_HALT = 1;
-var MSG_JSON = 2;
-var MSG_PING = 3;
+var MSG_HALT  = 1;
+var MSG_JSON  = 2;
+var MSG_PING  = 3;
+var MSG_FRAME = 4;
 
 function getAddressByInterface(name) {
     var iface = os.networkInterfaces()[name];
@@ -60,20 +61,24 @@ console.log('pull endpoint: ' + pullEndpoint);
 
 pullSock.on('message', function(data) {
     var dat = mpack.unpacker(data);
-    if (dat.get() == MSG_JSON) {
+    var cmd = dat.get();    
+    var rid = dat.get();
+    var  rt = _id2runtime[rid];
+    if (!rt) {
+        console.error('command socket, runtime not found id: ' + rid);
+        return;
+    }    
+    if (cmd == MSG_JSON) {
         var obj = JSON.parse(dat.get());
-        handleJson(obj);
+        handleJson(rt, obj);
+        return;
     }
+    console.error('command socket, invalid message: ' + cmd);
 });
 
-function handleJson(obj) {
-    var msg = obj[MSG], uid = obj[UID];
-    if (msg && UID) {
-        var rt = _id2runtime[uid];
-        if (!rt) {
-            console.error('runtime not found id: ' + uid);
-            return;
-        }
+function handleJson(rt, obj) {
+    var msg = obj[MSG];
+    if (msg) {
         var handler = rt['msg_' + msg];
         if (!handler) {
             console.error('runtime handler not found for: ' + msg);
@@ -154,18 +159,39 @@ Runtime.prototype.msg_started = function(obj) {
     console.log('started ', obj);
     
     this._pushSock = zmq.socket('push'); // this -> transcoder commands
-    this._subSock  = zmq.socket('sub');  // transcoder media   -> this
+    this._subSock  = zmq.socket('sub');  // transcoder media -> this
     
     this._pushSock.connect('tcp://' + pullAddr + ':' + obj.command.port);
     this._subSock .connect('tcp://' + pullAddr + ':' + obj.media.port);
     
+    for (var name in this._streams) {
+        var sid = this._streams[name];
+        this.message(MSG_JSON, JSON.stringify({stream:{name:name,sid:sid}}));
+    }
+    
     var self = this;
     this._pingTm = setInterval(function() {
-        self.message(MSG_PING, '' + self._rid);
-    }, 10000);
+        self.message(MSG_PING, self._rid);
+    }, 10000);    
+    
+    this._subSock.subscribe('');
+    this._subSock.on('message', function(data) {
+        var dat = mpack.unpacker(data);
+        var cmd = dat.get();
+        if (cmd == MSG_FRAME) {
+            var sid = dat.get();
+            var frame = dat.get();
+            self.emit('frame', sid, frame);
+            return;
+        }
+        console.error('media socket, invalid command', cmd);
+    });
 }
 
 Runtime.prototype.message = function(type) {
+    if (!this._pushSock) {
+        return;
+    }
     var pack = mpack.packer();
     pack.put(type);
     for (var i = 1; i < arguments.length; i++ ) {
@@ -181,12 +207,9 @@ Runtime.prototype.stream = function(stream) {
     }
     sid = this._sidsGen++;
     this._streams[stream] = sid;
-
-//TODO:....
-var self = this;
-setInterval(function() { self.emit('frame', sid, 'hello ' + sid + ' ' + stream); }, 2000);
-///...
-
+    
+    this.message(MSG_JSON, JSON.stringify({stream:{name:stream,sid:sid}}));
+    
     return sid;
 }
 

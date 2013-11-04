@@ -12,7 +12,7 @@
 #include "Common.h"
 #include "Exception.h"
 
-#define LOC ((toStr(__FILE__) + ":" + toStr(__LINE__) + " [" + toStr(__PRETTY_FUNCTION__) + "]\n\t"))
+#define LOC ((toStr(__FILE__) + ":" + toStr(__LINE__) + " [" + toStr(__PRETTY_FUNCTION__) + "]\n> "))
 
 #define Err (wStream::_clog_<<"ERROR ["<<wStream::timeNowStr()<<"] at "<<LOC)
 #define Log (wStream::_clog_<<"INFO  ["<<wStream::timeNowStr()<<"] at "<<LOC)

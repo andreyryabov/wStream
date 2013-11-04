@@ -54,7 +54,7 @@ Handler.prototype._stream = function(sid) {
 }
 
 var processes = {};
-var streams = {};
+var streams   = {};
 
 var wsServer = new ws.Server({port: 8105});
 

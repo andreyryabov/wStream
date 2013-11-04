@@ -10,6 +10,7 @@
 #include "Exception.h"
 #include "Transcoder.h"
 #include "Json.h"
+#include "MPack.h"
 
 using namespace std;
 using namespace msgpack;
@@ -22,6 +23,13 @@ static const string RES = "_res_";
 static const string SEQ = "_seq_";
 
 
+zmq::message_t toZmsg(Packer & buf) {
+    zmq::message_t zmsg(buf.size());
+    memcpy(zmsg.data(), buf.data(), buf.size());
+    return zmsg;
+}
+
+/***************** ZAdddr *********************************************************/
 ZAddr::ZAddr(const string & addr) {
     *this = parse(addr);
 }
@@ -56,7 +64,6 @@ ZAddr getEndpoint(zmq::socket_t & sock) {
     return ZAddr::parse(endpoint);
 }
 
-
 /******** class MainLoop *******************************************/
 MainLoop::MainLoop() : _context(1),
     _pullSock(_context, ZMQ_PULL),
@@ -65,7 +72,7 @@ MainLoop::MainLoop() : _context(1),
     _subSock (_context, ZMQ_SUB ) {
 }
 
-void MainLoop::init(const ZAddr & addr, const string & uuid) {
+void MainLoop::init(const ZAddr & addr, int64_t uuid) {
     _uuid = uuid;
     _pushSock.connect(toStr(addr).c_str());
 
@@ -106,107 +113,70 @@ void MainLoop::run() {
 void MainLoop::message(const std::string & msg, const Json::Value & value) {
     Json::Value json = value;
     json[MSG] = msg;
-    json["uuid"] = _uuid;
     
-    sbuffer buf;
-    pack(buf, MSG_JSON);
-    pack(buf, json.toStyledString());
+    Packer pack;
+    pack.put(MSG_JSON);
+    pack.put(_uuid);
+    pack.put(json.toStyledString());
     
-    zmq::message_t zmsg(buf.size());
-    memcpy(zmsg.data(), buf.data(), buf.size());
+    zmq::message_t zmsg = toZmsg(pack);
     _pushSock.send(zmsg);
 }
 
-template<type::object_type>
-struct UnionSelector {
-};
-
-#define UGET(itype_, ntype_, field_)\
-template<>\
-struct UnionSelector<type::object_type::itype_> {\
-    using NT = ntype_;\
-    static ntype_ get(object::union_type & v) { return v.field_; }\
-};
-
-UGET(BOOLEAN, bool, boolean);
-UGET(POSITIVE_INTEGER, uint64_t, u64);
-UGET(NEGATIVE_INTEGER, int64_t, i64);
-UGET(DOUBLE, double, dec);
-UGET(ARRAY,  object_array, array);
-UGET(MAP,    object_map, map);
-UGET(RAW,    object_raw, raw);
-
-#undef UGET
-
-class Unpacker {
-  public:
-    template<type::object_type T_>
-    typename UnionSelector<T_>::NT get() {
-        unpacked res;
-        _up.next(&res);        
-        if (res.get().type != T_) {
-            throw Exception EX("unexpected type: " + toStr(res.get().type) + ", must be: " + toStr(T_));
-        }
-        return UnionSelector<T_>::get(res.get().via);
-    }
-    
-    std::string getStr() {
-        object_raw raw = get<type::RAW>();
-        return std::string(raw.ptr, raw.size);
-    }    
-
-    Unpacker(const void * data, size_t size) {
-        _up.reserve_buffer(size);
-        memcpy(_up.buffer(), data, size);
-        _up.buffer_consumed(size);
-    }
-  private:
-    unpacker _up;
-};
-
 void MainLoop::handleCommand() {
     zmq::message_t msg;
-    if (!_pullSock.recv(&msg, ZMQ_DONTWAIT)) {
-        return;
-    }
-    
-    Unpacker up(msg.data(), msg.size());
-    int type = int(up.get<type::POSITIVE_INTEGER>());
-    
-    if (type == MSG_HALT) {
-        Log<<"got halt"<<endl;
-        _running = false;
-        return;
-    }
-    if (type == MSG_PING) {
-        string uuid = up.getStr();
-        if (uuid != _uuid) {
-            Err<<"got wrong ping uuid: "<<uuid<<" != "<<_uuid<<endl;
-        } else {
-            Log<<"got ping"<<endl;
-            _pingTs = Timer::now();
+    while (_pullSock.recv(&msg, ZMQ_DONTWAIT)) {
+        Unpacker up(msg.data(), msg.size());
+        int type = int(up.get<mtype::POSITIVE_INTEGER>());
+        
+        if (type == MSG_HALT) {
+            Log<<"got halt"<<endl;
+            _running = false;
+            return;
         }
-        return;
+        if (type == MSG_PING) {
+            int64_t uuid = up.get<mtype::POSITIVE_INTEGER>();
+            if (uuid != _uuid) {
+                Err<<"got wrong ping uuid: "<<uuid<<" != "<<_uuid<<endl;
+            } else {
+                Log<<"got ping"<<endl;
+                _pingTs = Timer::now();
+            }
+            return;
+        }
+        if (type == MSG_JSON) {
+            Json::Value json = parseJson(up.getStr());
+            Log<<"got json: "<<json.toStyledString()<<endl;
+            handleCommandJson(json);
+            return;
+        }
+        throw Exception EX("invalid message type: " + toStr(type));
     }
-    if (type == MSG_JSON) {
-        Json::Value json = parseJson(up.getStr());
-        Log<<"got json: "<<json.toStyledString()<<endl;
-        handleCommandJson(json);
-        return;
-    }
-    throw Exception EX("invalid message type: " + toStr(type));
 }
 
 void MainLoop::handleCommandJson(const Json::Value & json) {
-    if (json.isMember(MSG)) {
+    zmq::message_t msg;
+    while (_pullSock.recv(&msg, ZMQ_DONTWAIT)) {
+        if (json.isMember(MSG)) {
+         //TODO:........
+        }
         
-    }    
+        char dat[5] = {1, 2, 3, 4, 5};
+
+        Packer pack;
+        pack.put(MSG_FRAME);
+        pack.put(1);
+        pack.putRaw(&dat[0], sizeof(dat));
+
+        zmq::message_t zmg = toZmsg(pack);
+        _pubSock.send(zmg);
+        
+        Log<<"------- send media message "<<endl;
+    }
 }
 
 void MainLoop::handleMedia() {
-    
+
 }
-
-
 
 }

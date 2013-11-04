@@ -18,9 +18,10 @@ class Value;
 
 namespace wStream {
 
-static const int MSG_HALT = 1;
-static const int MSG_JSON = 2;
-static const int MSG_PING = 3;
+static const int MSG_HALT  = 1;
+static const int MSG_JSON  = 2;
+static const int MSG_PING  = 3;
+static const int MSG_FRAME = 4;
 
 class ZAddr {
   public:
@@ -40,7 +41,7 @@ class ZAddr {
 
 class MainLoop {
   public:
-    void init(const ZAddr &, const std::string & uuid);
+    void init(const ZAddr &, int64_t uuid);
     void run();    
     
     MainLoop();
@@ -58,8 +59,8 @@ class MainLoop {
     zmq::socket_t   _pubSock;
     zmq::socket_t   _subSock;
     
-    std::string     _uuid;
-    bool            _running{true};
+    int64_t  _uuid;
+    bool     _running{true};
     
     using Timer = std::chrono::steady_clock;
     using Timestamp = Timer::time_point;
