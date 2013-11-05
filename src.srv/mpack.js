@@ -38,5 +38,5 @@ Packer.prototype.buffer = function() {
 }
 
 exports.unpacker = function(buf) { return new Unpacker(buf); }
-exports.packer   = function(buf) { return new Packer(buf);   }
+exports.packer   = function()    { return new Packer(); }
 

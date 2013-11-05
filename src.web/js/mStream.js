@@ -1,5 +1,12 @@
 'use strict';
 
+var msg = {
+    HALT:  1,
+    JSON:  2,
+    PING:  3,
+    FRAME: 4
+};
+
 function WStream(url) {
     this._url = url;
     this._group = null;
@@ -37,6 +44,7 @@ WStream.prototype.connect = function() {
     var self = this;
     console.log('wstream connecting to: ' + this._url);
     this._socket = new WebSocket(this._url);
+    this._socket.binaryType = 'arraybuffer';
     this._socket.onopen = function() {
         console.log('wstream connected', self._socket);
         self._isConnected = true;
@@ -50,7 +58,20 @@ WStream.prototype.connect = function() {
         }
     }
     this._socket.onmessage = function(evt) {
-        console.log('onmessage', evt.data);
+        console.log('onmessage', evt, evt.data);
+        var dec = msgpack.decoder(evt.data);
+        var cmd = dec.parse();
+        if (cmd == msg.JSON) {
+            console.log('recv json', JSON.parse(dec.parse()));
+            return;
+        }
+        if (cmd == msg.FRAME) {
+            var sid = dec.parse();
+            var frame = dec.parse();
+            console.log('frame', sid, frame);
+            return;
+        }
+        return console.error('invalid message type', cmd);
     }
 }
 

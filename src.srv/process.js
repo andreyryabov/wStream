@@ -7,16 +7,10 @@ var exec   = require('child_process'),
     zmq    = require('zmq'),
     os     = require('os'),
     conf   = require('./_config.js').transcoder,
+    msg    = require('./_config.js').consts.msg,
     mpack  = require('./mpack.js');
 
-
 var MSG = '_msg_';
-var UID = 'uuid';
-
-var MSG_HALT  = 1;
-var MSG_JSON  = 2;
-var MSG_PING  = 3;
-var MSG_FRAME = 4;
 
 function getAddressByInterface(name) {
     var iface = os.networkInterfaces()[name];
@@ -68,7 +62,7 @@ pullSock.on('message', function(data) {
         console.error('command socket, runtime not found id: ' + rid);
         return;
     }    
-    if (cmd == MSG_JSON) {
+    if (cmd == msg.JSON) {
         var obj = JSON.parse(dat.get());
         handleJson(rt, obj);
         return;
@@ -113,7 +107,7 @@ Runtime.prototype.stop = function() {
         setTimeout(function() { proc.kill('SIGKILL'); }, 3000);
     }
     
-    this.message(MSG_HALT);
+    this.message(msg.HALT);
     if (this._pingTm) {
         clearInterval(this._pingTm);
         this._pingTm = null;
@@ -166,19 +160,19 @@ Runtime.prototype.msg_started = function(obj) {
     
     for (var name in this._streams) {
         var sid = this._streams[name];
-        this.message(MSG_JSON, JSON.stringify({stream:{name:name,sid:sid}}));
+        this.message(msg.JSON, {stream:{name:name,sid:sid}});
     }
     
     var self = this;
     this._pingTm = setInterval(function() {
-        self.message(MSG_PING, self._rid);
+        self.message(msg.PING, self._rid);
     }, 10000);    
     
     this._subSock.subscribe('');
     this._subSock.on('message', function(data) {
         var dat = mpack.unpacker(data);
         var cmd = dat.get();
-        if (cmd == MSG_FRAME) {
+        if (cmd == msg.FRAME) {
             var sid = dat.get();
             var frame = dat.get();
             self.emit('frame', sid, frame);
@@ -194,8 +188,13 @@ Runtime.prototype.message = function(type) {
     }
     var pack = mpack.packer();
     pack.put(type);
-    for (var i = 1; i < arguments.length; i++ ) {
-        pack.put(arguments[i]);
+    if (type == msg.JSON) {
+        console.log('runtime sends json to the process', arguments[1]);
+        pack.put(JSON.stringify(arguments[1]));
+    } else {
+        for (var i = 1; i < arguments.length; i++ ) {
+            pack.put(arguments[i]);
+        }
     }
     this._pushSock.send(pack.buffer());
 }
@@ -208,7 +207,7 @@ Runtime.prototype.stream = function(stream) {
     sid = this._sidsGen++;
     this._streams[stream] = sid;
     
-    this.message(MSG_JSON, JSON.stringify({stream:{name:stream,sid:sid}}));
+    this.message(msg.JSON, {stream:{name:stream,sid:sid}});
     
     return sid;
 }
@@ -217,7 +216,7 @@ Runtime.prototype.stream = function(stream) {
  * Process instance.
  */
 function Process(rt) {
-    var self = this;
+    var self      = this;
     this.streams  = {};
     this.sids     = {};
     this._runtime = rt;

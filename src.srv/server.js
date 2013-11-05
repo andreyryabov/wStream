@@ -1,7 +1,9 @@
 'use strict';
 
-var ws = require('ws'),
-    pc = require('./process.js');
+var ws    = require('ws'),
+    pc    = require('./process.js'),
+    msg   = require('./_config.js').consts.msg,
+    mpack = require('./mpack.js');
 
 function Handler(socket) {
     var self = this;
@@ -34,6 +36,19 @@ Handler.prototype._cleanup = function() {
     }
 }
 
+Handler.prototype._message = function(type) {
+    var pack = mpack.packer();
+    pack.put(type);
+    if (type == msg.JSON) {
+        pack.put(JSON.stringify(arguments[1]));
+    } else {
+        for (var i = 1; i < arguments.length; i++ ) {
+            pack.put(arguments[i]);
+        }
+    }
+    this._socket.send(pack.buffer());
+}
+
 Handler.prototype._group = function(cid) {
     if (this._proc) {
         throw new Error('process already open');
@@ -41,7 +56,10 @@ Handler.prototype._group = function(cid) {
     this._proc = pc.open(cid);
     var self = this;
     this._proc.on('frame', function(sid, frame) {
-        self._socket.send(JSON.stringify({frame:frame, sid:sid}));
+        var pack = mpack.packer();
+        pack.put(sid);
+        pack.put(frame);
+        self._socket.send(pack.buffer());
     });
 }
 
@@ -50,7 +68,7 @@ Handler.prototype._stream = function(sid) {
         throw new Error('invalid state, process not oopen');
     }
     this._proc.stream(sid);
-    this._socket.send(JSON.stringify({streams: this._proc.streams}));
+    this._message(msg.JSON, {streams: this._proc.streams});
 }
 
 var processes = {};

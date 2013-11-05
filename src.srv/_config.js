@@ -8,3 +8,11 @@ exports.transcoder = {
     refcheckInterval: 5000,    
 }
 
+exports.consts = {
+    msg: {
+        HALT:  1,
+        JSON:  2,
+        PING:  3,
+        FRAME: 4
+    }
+}

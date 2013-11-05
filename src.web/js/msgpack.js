@@ -149,6 +149,12 @@ exports.encode = function (value) {
   return buffer;
 }
 
+exports.decoder = function(buffer) {
+  var view = new DataView(buffer);
+  var decoder = new Decoder(view);
+  return decoder;
+}
+
 exports.decode = decode;
 
 // http://wiki.msgpack.org/display/MSGPACK/Format+specification

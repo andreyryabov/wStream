@@ -142,37 +142,38 @@ void MainLoop::handleCommand() {
                 Log<<"got ping"<<endl;
                 _pingTs = Timer::now();
             }
-            return;
+            continue;
         }
         if (type == MSG_JSON) {
             Json::Value json = parseJson(up.getStr());
             Log<<"got json: "<<json.toStyledString()<<endl;
             handleCommandJson(json);
-            return;
+            continue;
         }
         throw Exception EX("invalid message type: " + toStr(type));
     }
 }
 
 void MainLoop::handleCommandJson(const Json::Value & json) {
-    zmq::message_t msg;
-    while (_pullSock.recv(&msg, ZMQ_DONTWAIT)) {
-        if (json.isMember(MSG)) {
-         //TODO:........
-        }
-        
+    if (json.isMember("stream")) {
+        string name = json["stream"]["name"].asString();
+        int     sid = json["stream"]["sid"].asInt();
+
         char dat[5] = {1, 2, 3, 4, 5};
 
         Packer pack;
         pack.put(MSG_FRAME);
-        pack.put(1);
+        pack.put(sid);
         pack.putRaw(&dat[0], sizeof(dat));
 
         zmq::message_t zmg = toZmsg(pack);
         _pubSock.send(zmg);
         
-        Log<<"------- send media message "<<endl;
+        Log<<"--- send media frame, sid "<<sid<<endl;
+        return;
     }
+    Err<<"invalid json command "<<json.toStyledString()<<endl;
+    throw Exception EX("invalid json command");
 }
 
 void MainLoop::handleMedia() {
