@@ -57,6 +57,7 @@ Handler.prototype._group = function(cid) {
     var self = this;
     this._proc.on('frame', function(sid, frame) {
         var pack = mpack.packer();
+        pack.put(msg.FRAME);
         pack.put(sid);
         pack.put(frame);
         self._socket.send(pack.buffer());

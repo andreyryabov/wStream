@@ -11,6 +11,7 @@ function WStream(url) {
     this._url = url;
     this._group = null;
     this._streams = [];
+    this._sids    = {};
     this._isConnected = false;
 }
 
@@ -62,17 +63,34 @@ WStream.prototype.connect = function() {
         var dec = msgpack.decoder(evt.data);
         var cmd = dec.parse();
         if (cmd == msg.JSON) {
-            console.log('recv json', JSON.parse(dec.parse()));
+            var json = JSON.parse(dec.parse());
+            console.log('received json', json);
+            self._handleJson(json);
             return;
         }
         if (cmd == msg.FRAME) {
             var sid = dec.parse();
             var frame = dec.parse();
-            console.log('frame', sid, frame);
+            var name = self._sids[sid];
+            if (name) {
+                console.log('frame', sid, name, frame);
+            } else {
+                console.error('stream does not exists for sid: ' + sid, self._sids);
+            }
             return;
         }
         return console.error('invalid message type', cmd);
     }
+}
+
+WStream.prototype._handleJson = function(json) {
+    if (json.streams) {
+        for (var name in json.streams) {
+            this._sids[json.streams[name]] = name;
+        }
+        return;
+    }
+    console.log('invalid json', json);
 }
 
 WStream.prototype._sendJson = function(obj) {
