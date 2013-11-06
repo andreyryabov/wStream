@@ -17,6 +17,20 @@
 #define Err (wStream::_clog_<<"ERROR ["<<wStream::timeNowStr()<<"] at "<<LOC)
 #define Log (wStream::_clog_<<"INFO  ["<<wStream::timeNowStr()<<"] at "<<LOC)
 
+#define apiVarEx(varName, invocation) \
+    decltype(invocation) varName = invocation;\
+    if (!varName) {\
+        throw Exception EX(#invocation" - failed");\
+    }
+
+#define apiIntEx(invocation) {\
+    int res = invocation;\
+    if (res < 0) {\
+        throw Exception EX(#invocation" - failed");\
+    }\
+}
+
+
 namespace wStream {
 
 void openLogFile(const std::string &);

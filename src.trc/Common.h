@@ -13,8 +13,10 @@
 #include <queue>
 #include <regex>
 #include <ctime>
+#include <thread>
 #include <chrono>
 #include <vector>
+#include <fstream>
 #include <iomanip>
 #include <cstring>
 #include <cstdlib>
@@ -22,8 +24,13 @@
 #include <cassert>
 #include <unistd.h>
 #include <iostream>
-#include <fstream>
 #include <algorithm>
 #include <msgpack.hpp>
+#include "zmq.hpp"
+
+extern "C" {
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+}
 
 #endif

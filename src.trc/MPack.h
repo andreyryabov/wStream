@@ -31,6 +31,9 @@ class Packer {
         return * this;
     }
     
+    void clear() {
+        _buf.clear();
+    }    
     
     void * data() {
         return _buf.data();
@@ -38,6 +41,11 @@ class Packer {
     
     size_t size() {
         return _buf.size();
+    }
+    
+    Packer() {}
+    
+    explicit Packer(size_t size) : _buf(size) {
     }
       
   private:

@@ -16,9 +16,9 @@
 		764D60E9181AE25B00E9BAB4 /* libzmq.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 764D60E8181AE25B00E9BAB4 /* libzmq.a */; };
 		764D60ED181BCB8E00E9BAB4 /* Utils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 764D60EB181BCB8E00E9BAB4 /* Utils.cpp */; };
 		764D60EF181FBE2000E9BAB4 /* libjson.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 764D60EE181FBE2000E9BAB4 /* libjson.a */; };
-		764D60F4181FD18600E9BAB4 /* Transcoder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 764D60F2181FD18600E9BAB4 /* Transcoder.cpp */; };
+		764D60F4181FD18600E9BAB4 /* MainLoop.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 764D60F2181FD18600E9BAB4 /* MainLoop.cpp */; };
 		764D60FB18242EFB00E9BAB4 /* libmsgpack.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 764D60FA18242EFB00E9BAB4 /* libmsgpack.a */; };
-		764D60FD1826C34200E9BAB4 /* msgpack.js in Sources */ = {isa = PBXBuildFile; fileRef = 764D60FC1826C34200E9BAB4 /* msgpack.js */; };
+		764D6101182A6D1400E9BAB4 /* Transcoder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 764D60FF182A6D1400E9BAB4 /* Transcoder.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -53,15 +53,17 @@
 		764D60EE181FBE2000E9BAB4 /* libjson.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libjson.a; path = externals/lib/osx64/libjson.a; sourceTree = "<group>"; };
 		764D60F0181FC53900E9BAB4 /* Common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Common.h; sourceTree = "<group>"; };
 		764D60F1181FCCD400E9BAB4 /* Json.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Json.h; sourceTree = "<group>"; };
-		764D60F2181FD18600E9BAB4 /* Transcoder.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Transcoder.cpp; sourceTree = "<group>"; };
-		764D60F3181FD18600E9BAB4 /* Transcoder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Transcoder.h; sourceTree = "<group>"; };
+		764D60F2181FD18600E9BAB4 /* MainLoop.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MainLoop.cpp; sourceTree = "<group>"; };
+		764D60F3181FD18600E9BAB4 /* MainLoop.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MainLoop.h; sourceTree = "<group>"; };
 		764D60F5182286CE00E9BAB4 /* mStream.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = mStream.js; sourceTree = "<group>"; };
 		764D60F71822C39200E9BAB4 /* zmq.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = zmq.hpp; sourceTree = "<group>"; };
 		764D60F81823D61800E9BAB4 /* package.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = package.json; sourceTree = "<group>"; };
 		764D60F91823E55A00E9BAB4 /* mpack.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = mpack.js; sourceTree = "<group>"; };
-		764D60FA18242EFB00E9BAB4 /* libmsgpack.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libmsgpack.a; path = ../../../../usr/local/lib/libmsgpack.a; sourceTree = "<group>"; };
+		764D60FA18242EFB00E9BAB4 /* libmsgpack.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libmsgpack.a; path = /usr/local/lib/libmsgpack.a; sourceTree = "<absolute>"; };
 		764D60FC1826C34200E9BAB4 /* msgpack.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = msgpack.js; sourceTree = "<group>"; };
 		764D60FE182778F400E9BAB4 /* MPack.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MPack.h; sourceTree = "<group>"; };
+		764D60FF182A6D1400E9BAB4 /* Transcoder.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Transcoder.cpp; sourceTree = "<group>"; };
+		764D6100182A6D1400E9BAB4 /* Transcoder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Transcoder.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -86,7 +88,6 @@
 		764D609E1815845100E9BAB4 = {
 			isa = PBXGroup;
 			children = (
-				764D60FA18242EFB00E9BAB4 /* libmsgpack.a */,
 				764D60DD181A6A4000E9BAB4 /* src.trc */,
 				764D60DF181A6A4000E9BAB4 /* src.srv */,
 				764D60D8181A6A3000E9BAB4 /* src.web */,
@@ -106,6 +107,7 @@
 		764D60B51815851F00E9BAB4 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				764D60FA18242EFB00E9BAB4 /* libmsgpack.a */,
 				764D60C51815C32B00E9BAB4 /* libavcodec.a */,
 				764D60EE181FBE2000E9BAB4 /* libjson.a */,
 				764D60E8181AE25B00E9BAB4 /* libzmq.a */,
@@ -139,16 +141,18 @@
 		764D60DD181A6A4000E9BAB4 /* src.trc */ = {
 			isa = PBXGroup;
 			children = (
+				764D60DE181A6A4000E9BAB4 /* main.cpp */,
 				764D60F71822C39200E9BAB4 /* zmq.hpp */,
 				764D60F1181FCCD400E9BAB4 /* Json.h */,
 				764D60F0181FC53900E9BAB4 /* Common.h */,
 				764D60EA181BCB8E00E9BAB4 /* Utils.h */,
 				764D60EB181BCB8E00E9BAB4 /* Utils.cpp */,
 				764D60EC181BCB8E00E9BAB4 /* Exception.h */,
-				764D60DE181A6A4000E9BAB4 /* main.cpp */,
-				764D60F2181FD18600E9BAB4 /* Transcoder.cpp */,
-				764D60F3181FD18600E9BAB4 /* Transcoder.h */,
+				764D60F2181FD18600E9BAB4 /* MainLoop.cpp */,
+				764D60F3181FD18600E9BAB4 /* MainLoop.h */,
 				764D60FE182778F400E9BAB4 /* MPack.h */,
+				764D60FF182A6D1400E9BAB4 /* Transcoder.cpp */,
+				764D6100182A6D1400E9BAB4 /* Transcoder.h */,
 			);
 			path = src.trc;
 			sourceTree = "<group>";
@@ -218,8 +222,8 @@
 			files = (
 				764D60E1181A6A4000E9BAB4 /* main.cpp in Sources */,
 				764D60ED181BCB8E00E9BAB4 /* Utils.cpp in Sources */,
-				764D60F4181FD18600E9BAB4 /* Transcoder.cpp in Sources */,
-				764D60FD1826C34200E9BAB4 /* msgpack.js in Sources */,
+				764D60F4181FD18600E9BAB4 /* MainLoop.cpp in Sources */,
+				764D6101182A6D1400E9BAB4 /* Transcoder.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -243,6 +247,7 @@
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREFIX_HEADER = src.trc/Common.h;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
 					"$(inherited)",
@@ -259,6 +264,7 @@
 				LIBRARY_SEARCH_PATHS = /usr/local/lib;
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				ONLY_ACTIVE_ARCH = YES;
+				RUN_CLANG_STATIC_ANALYZER = NO;
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -279,6 +285,7 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_PREFIX_HEADER = src.trc/Common.h;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
@@ -289,6 +296,7 @@
 				);
 				LIBRARY_SEARCH_PATHS = /usr/local/lib;
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
+				RUN_CLANG_STATIC_ANALYZER = NO;
 				SDKROOT = macosx;
 			};
 			name = Release;

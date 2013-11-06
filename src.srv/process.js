@@ -133,16 +133,17 @@ Runtime.prototype.start = function() {
     
     this._proc  = exec.execFile(conf.exec, [pullEndpoint, this._rid, logFile],
         {},
-        function(error) {
+        function(error, stdOut, stdErr) {
             delete _id2runtime[self._rid];
             console.log('process runtime stopped, ' + self._logId);
             if (self._stopped) {
                 return;
             }
             if (error) {
-                console.error('error in process, ' + self._logId, error);
+                console.error('error in process, ' + self._logId, error, stdOut, stdErr);
             }
             setTimeout(function() { self.start(); }, conf.restartInterval);
+            clearInterval(self._pingTm);
         });
     this._proc.unref();
     
@@ -166,7 +167,7 @@ Runtime.prototype.msg_started = function(obj) {
     var self = this;
     this._pingTm = setInterval(function() {
         self.message(msg.PING, self._rid);
-    }, 10000);    
+    }, 10000);
     
     this._subSock.subscribe('');
     this._subSock.on('message', function(data) {
