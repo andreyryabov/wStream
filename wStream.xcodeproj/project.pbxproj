@@ -19,6 +19,7 @@
 		764D60F4181FD18600E9BAB4 /* MainLoop.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 764D60F2181FD18600E9BAB4 /* MainLoop.cpp */; };
 		764D60FB18242EFB00E9BAB4 /* libmsgpack.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 764D60FA18242EFB00E9BAB4 /* libmsgpack.a */; };
 		764D6101182A6D1400E9BAB4 /* Transcoder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 764D60FF182A6D1400E9BAB4 /* Transcoder.cpp */; };
+		764D6103182BE1D200E9BAB4 /* libswscale.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 764D6102182BE1D200E9BAB4 /* libswscale.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -64,6 +65,7 @@
 		764D60FE182778F400E9BAB4 /* MPack.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MPack.h; sourceTree = "<group>"; };
 		764D60FF182A6D1400E9BAB4 /* Transcoder.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Transcoder.cpp; sourceTree = "<group>"; };
 		764D6100182A6D1400E9BAB4 /* Transcoder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Transcoder.h; sourceTree = "<group>"; };
+		764D6102182BE1D200E9BAB4 /* libswscale.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libswscale.a; path = /usr/local/lib/libswscale.a; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -71,6 +73,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				764D6103182BE1D200E9BAB4 /* libswscale.a in Frameworks */,
 				764D60FB18242EFB00E9BAB4 /* libmsgpack.a in Frameworks */,
 				764D60EF181FBE2000E9BAB4 /* libjson.a in Frameworks */,
 				764D60E9181AE25B00E9BAB4 /* libzmq.a in Frameworks */,
@@ -107,6 +110,7 @@
 		764D60B51815851F00E9BAB4 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				764D6102182BE1D200E9BAB4 /* libswscale.a */,
 				764D60FA18242EFB00E9BAB4 /* libmsgpack.a */,
 				764D60C51815C32B00E9BAB4 /* libavcodec.a */,
 				764D60EE181FBE2000E9BAB4 /* libjson.a */,

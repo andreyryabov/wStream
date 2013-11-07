@@ -87,17 +87,13 @@ int _test_VideoStream() {
         cout<<"failed to find video stream"<<endl;
         return -1;
     }
-
-    AVStream * stream = fmtCtx->streams[idx];    
-    int width  = stream->codec->width;
-    int height = stream->codec->height;
     
     EncoderConfig enCfg;
     enCfg.name    = "mpeg1video";
     enCfg.bitrate = 60000;
-    enCfg.width   = width; //144;
-    enCfg.height  = height; //108;
-    enCfg.gopSize = 10;
+    enCfg.width   = 144;
+    enCfg.height  = 108;
+    enCfg.gopSize = 100;
     
     Transcoder trc;
     trc.initDecoder("flv");
@@ -114,20 +110,19 @@ int _test_VideoStream() {
             continue;
         }
         trc.decode(packet.data, packet.size, packet.flags & AV_PKT_FLAG_KEY);
-        cout<<"decoded: "<<packet.pts<<endl;
+        cout<<"decoded: "<<packet.pts<<", key: "<<(packet.flags & AV_PKT_FLAG_KEY)<<endl;
 
         const void * data = nullptr;
         size_t size = 0;
         bool key = false;
         
-        for (int i = 0; i < 3; i++ ) {
+        for (int i = 0; i < 1; i++ ) {
             if (trc.encode(data, size, key)) {
                 mpg.write((char*)data, size);
                 cout<<"encoded: "<<size_t(data)<<", size: "<<size<<", key: "<<key<<endl;
             }
         }
-        
-    }    
+    }
 
     return 0;
 }

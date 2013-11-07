@@ -32,13 +32,17 @@ class Transcoder {
     Transcoder();
     virtual ~Transcoder();
   private:
+    EncoderConfig    _encConfig;
+    SwsContext     * _scaler  { nullptr };
     AVCodec        * _decoder { nullptr };
-    AVCodecContext * _decCtx  { nullptr };
     AVCodec        * _encoder { nullptr };
-    AVCodecContext * _encCtx  { nullptr };
-    AVFrame        * _frame   { nullptr };
-    AVPacket         _packet;
-    bool             _hasFrame{ false };
+    AVCodecContext * _deCtx   { nullptr };
+    AVCodecContext * _enCtx   { nullptr };
+    AVFrame        * _deFrame { nullptr };
+    AVFrame        * _scFrame { nullptr };
+    AVPacket         _packet;    
+    bool             _hasFrame{ false   };
+
 };
 
 }

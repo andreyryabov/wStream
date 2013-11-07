@@ -29,6 +29,7 @@
 #include "zmq.hpp"
 
 extern "C" {
+#include <libswscale/swscale.h>
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 }
