@@ -30,28 +30,27 @@ Transcoder::~Transcoder() {
     sws_freeContext(_scaler);
 }
     
-void Transcoder::initDecoder(const string & codec, const string & bitstream, uint8_t * ex, size_t exSize) {
-    if (bitstream.size()) {
-        _bitstreamFilter = decltype(_bitstreamFilter) {
-            nullEx(av_bitstream_filter_init(bitstream.c_str()), EX("bitstream filter not found: " + bitstream)),
-            [](AVBitStreamFilterContext * p) { av_bitstream_filter_close(p);}
-        };
-    } else {
-        _bitstreamFilter = decltype(_bitstreamFilter)();
+void Transcoder::initDecoder(const string & codec, const Blob & extra) {
+    if (_decoder && codec == _decoder->name && _extra == extra) {
+        return;
     }
+    _extra   = extra;
     _decoder = nullEx(avcodec_find_decoder_by_name(codec.c_str()), EX("decoder not found: " + codec));
     _deCtx   = decltype(_deCtx) {
         nullEx(avcodec_alloc_context3(_decoder), EX("decoder context allocation failed")),
         [](AVCodecContext * c) { avcodec_close(c); av_free(c); }
     };
-    _deCtx->extradata = ex;
-    _deCtx->extradata_size = int(exSize);
+    _deCtx->extradata = _extra.data();
+    _deCtx->extradata_size = int(_extra.size());
     if (avcodec_open2(_deCtx.get(), _decoder, nullptr) < 0) {
         throw Exception EX("failed to open decoder context");
     }
 }
 
 void Transcoder::decode(const void * data, size_t size, bool isKey) {
+    if (!_decoder) {
+        return;
+    }
     AVPacket packet;
     av_init_packet(&packet);
     packet.data = (uint8_t*)data;
@@ -124,21 +123,27 @@ bool Transcoder::encode(const void * & ptr, size_t & size, bool & isKey) {
             SWS_FAST_BILINEAR, nullptr, nullptr, nullptr);
     
     sws_scale(_scaler, _deFrame->data, _deFrame->linesize, 0, _deFrame->height, _scFrame->data, _scFrame->linesize);
-    _scFrame->pict_type = _deFrame->pict_type;
-
     av_free_packet(&_packet);
     
+    if (_keyFrame) {
+        _keyFrame = false;
+        _scFrame->pict_type = AV_PICTURE_TYPE_I;
+    }
     int gotPacket = 0;
     if (avcodec_encode_video2(_enCtx.get(), &_packet, _scFrame, &gotPacket) < 0) {
         Err<<"failed to encode frame"<<endl;
         return false;
-    }
+    }    
     if (gotPacket) {
         ptr   = _packet.data;
         size  = _packet.size;
         isKey = _packet.flags & AV_PKT_FLAG_KEY;
     }
     return gotPacket;
+}
+    
+void Transcoder::keyframe() {
+    _keyFrame = true;
 }
     
 }

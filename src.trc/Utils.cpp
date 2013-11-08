@@ -15,10 +15,12 @@ using namespace std;
 
 namespace wStream {
 
-std::ofstream _clog_;
+std::ostream * _clog_ = &cout;
+std::ofstream  _cFile_;
 
 void openLogFile(const string & file) {
-    _clog_.open(file, ios_base::app|ios_base::out);
+    _cFile_.open(file, ios_base::app|ios_base::out);
+    _clog_ = &_cFile_;
 }
 
 string toHexStr(char byte) {

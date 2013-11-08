@@ -16,8 +16,8 @@
 
 #define LOC ((toStr(__FILE__) + ":" + toStr(__LINE__) + " [" + toStr(__PRETTY_FUNCTION__) + "]\n> "))
 
-#define Err (wStream::_clog_<<"ERROR ["<<wStream::timeNowStr()<<"] at "<<LOC)
-#define Log (wStream::_clog_<<"INFO  ["<<wStream::timeNowStr()<<"] at "<<LOC)
+#define Err ((*wStream::_clog_)<<"ERROR ["<<wStream::timeNowStr()<<"] at "<<LOC)
+#define Log ((*wStream::_clog_)<<"INFO  ["<<wStream::timeNowStr()<<"] at "<<LOC)
 
 #define apiVarEx(varName, invocation) \
     decltype(invocation) varName = invocation;\
@@ -45,7 +45,7 @@ T_ * nullEx(T_ * v, const std::string & msg) {
 
 void openLogFile(const std::string &);
 
-extern std::ofstream _clog_;
+extern std::ostream * _clog_;
 
 class NonCopyable {
   public:

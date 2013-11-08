@@ -41,6 +41,7 @@ class ZAddr {
     static const std::regex RX_ADDR;
 };
 
+class Stream;
 class MainLoop {
   public:
     void init(const ZAddr &, int64_t uuid);
@@ -56,7 +57,6 @@ class MainLoop {
     void fileStream(const std::string & name);
     
     void onMedia();
-    
   
     zmq::context_t  _context;
     zmq::socket_t   _pullSock;
@@ -71,7 +71,7 @@ class MainLoop {
     using Timestamp = Timer::time_point;
     
     Timestamp _pingTs;
-    std::map<std::string, int> _name2sid;
+    std::map<std::string, std::shared_ptr<Stream>> _streams;
 };
 
 

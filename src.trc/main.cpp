@@ -20,17 +20,23 @@ void handleSignal(int sig) {
     exit(1);
 }
 
-int _test_VideoStream();
+void ffmpegLog(void * ptr, int level, const char * fmt, va_list args) {
+    char buf[1024];
+    int pref = 0;
+    av_log_format_line(ptr, level, fmt, args, buf, sizeof(buf) - 1, &pref);
+    Err<<"ffmpeg: "<<buf<<endl;
+}
 
+int _test_VideoStream();
 
 int main(int argc, const char * argv[]) {
     av_register_all();
+    av_log_set_callback(ffmpegLog);
 
     for (int sig : { SIGSEGV, SIGTERM, SIGINT, SIGHUP, SIGABRT}) {
         signal(sig, handleSignal);
-    }
-    
-return _test_VideoStream();
+    }    
+    //return _test_VideoStream();
 
     if (argc != 4) {
         Err<<"invalid arguments, use: "<<argv[0]<<" tcp://srv:port uuid logFile.log"<<endl;
@@ -90,10 +96,17 @@ int _test_VideoStream() {
         cout<<"failed to find video stream"<<endl;
         return -1;
     }
-    AVStream * stream = fmtCtx->streams[idx];
-    uint8_t * extra = stream->codec->extradata;
-    int extraSize = stream->codec->extradata_size;
     
+    AVStream * stream = fmtCtx->streams[idx];
+    AVRational timeBase = stream->time_base;
+    
+    Blob decoderExtra;
+    uint8_t * extra = stream->codec->extradata;
+    if (extra) {
+        int extraSize = stream->codec->extradata_size;
+        decoderExtra.assign(extra, extra + extraSize);
+    }    
+
     string codecName = codec->name;
     
     EncoderConfig enCfg;
@@ -105,12 +118,8 @@ int _test_VideoStream() {
     
     Transcoder trc;
 
-    trc.initDecoder(codecName, ""/*"h264_mp4toannexb"*/, extra, extraSize);
+    trc.initDecoder(codecName, decoderExtra);
     trc.initEncoder(enCfg);
-
-trc._deCtx->extradata = extra;
-trc._deCtx->extradata_size = extraSize;
-    //trc.decode(buff.data(), buff.size());
     
     ofstream mpg("/Users/RKK2/workspace/wStream/data/out.mpg", ios::binary|ios::trunc);
     
@@ -121,15 +130,9 @@ trc._deCtx->extradata_size = extraSize;
         if (packet.stream_index != idx) {
             continue;
         }
-    vector<uint8_t> buff(packet.size/* + 4*/);
-//    buff[0] = 0;
-//    buff[1] = 0;
-//    buff[2] = 0;
-//    buff[3] = 1;
-    memcpy(&buff[0], packet.data, packet.size);
-        
-        trc.decode(buff.data(), buff.size(), packet.flags & AV_PKT_FLAG_KEY);
-        cout<<"decoded: "<<packet.pts<<", key: "<<(packet.flags & AV_PKT_FLAG_KEY)<<endl;
+        trc.decode(packet.data, packet.size, packet.flags & AV_PKT_FLAG_KEY);
+        int64_t ts = (packet.pts * 1000 * timeBase.num) / timeBase.den;
+        cout<<"decoded, ts: "<<ts<<((packet.flags & AV_PKT_FLAG_KEY) ? ", key" : "")<<endl;
 
         const void * data = nullptr;
         size_t size = 0;

@@ -13,9 +13,6 @@
 
 namespace wStream {
 
-namespace mtype = msgpack::type;
-
-
 class Packer {
   public:
     template<typename T_>
@@ -54,21 +51,23 @@ class Packer {
 
 
 /***************** Unpacker ***************************************************************/
-template<msgpack::type::object_type>
+template<typename>
 struct UnionSelector {
 };
 
 #define UGET(itype_, ntype_, field_)\
 template<>\
-struct UnionSelector<msgpack::type::object_type::itype_> {\
+struct UnionSelector<ntype_> {\
     using NT = ntype_;\
-    static ntype_ get(msgpack::object::union_type & v) { return v.field_; }\
+    static msgpack::type::object_type getType() { return msgpack::type::itype_; }\
+    static ntype_ getValue(msgpack::object::union_type & v) { return v.field_; }\
 };
 
-UGET(BOOLEAN, bool, boolean);
+
+UGET(BOOLEAN, bool,    boolean);
 UGET(POSITIVE_INTEGER, uint64_t, u64);
 UGET(NEGATIVE_INTEGER, int64_t, i64);
-UGET(DOUBLE, double, dec);
+UGET(DOUBLE, double,   dec);
 UGET(ARRAY,  msgpack::object_array, array);
 UGET(MAP,    msgpack::object_map, map);
 UGET(RAW,    msgpack::object_raw, raw);
@@ -77,21 +76,87 @@ UGET(RAW,    msgpack::object_raw, raw);
 
 class Unpacker {
   public:
-    template<msgpack::type::object_type T_>
-    typename UnionSelector<T_>::NT get() {
+    template<typename T_>
+    bool next(T_ & v) {
         msgpack::unpacked res;
-        _up.next(&res);        
-        if (res.get().type != T_) {
-            throw Exception EX("unexpected type: " + toStr(res.get().type) + ", must be: " + toStr(T_));
+        if (!_up.next(&res)) {
+            return false;
         }
-        return UnionSelector<T_>::get(res.get().via);
+        using S = UnionSelector<T_>;
+        if (res.get().type != S::getType()) {
+            throw Exception EX("invalid type: " + toStr(res.get().type) +
+                               ", expected: " + toStr(UnionSelector<T_>::getType()));
+        }
+        v = S::getValue(res.get().via);
+        return true;
     }
     
-    std::string getStr() {
-        msgpack::object_raw raw = get<msgpack::type::RAW>();
-        return std::string(raw.ptr, raw.size);
-    }    
+    template<typename C_>
+    bool nextRaw(C_ & v) {
+        msgpack::unpacked res;
+        if (!_up.next(&res)) {
+            return false;
+        }
+        if (res.get().type == msgpack::type::RAW) {
+            typename C_::const_pointer ptr = reinterpret_cast<typename C_::const_pointer>(res.get().via.raw.ptr);
+            v = C_(ptr, ptr + res.get().via.raw.size);
+            return true;
+        }
+        throw Exception EX("invalid type: " + toStr(res.get().type) + ", raw expected");
+    }
+    
+    bool next(std::vector<uint8_t> & v) {
+        return nextRaw(v);
+    }
+    
+    bool next(std::string & v) {
+        return nextRaw(v);
+    }
+    
+    bool next(int & v) {
+        int64_t vv;
+        bool res = next(vv);
+        v = int(vv);
+        return res;
+    }
+        
+    bool next(int64_t & v) {
+        msgpack::unpacked res;
+        if (!_up.next(&res)) {
+            return false;
+        }
+        if (res.get().type == msgpack::type::POSITIVE_INTEGER) {
+            v = res.get().via.u64;
+            return true;
+        }
+        if (res.get().type == msgpack::type::NEGATIVE_INTEGER) {
+            v = int64_t(res.get().via.i64);
+            return true;
+        }
+        throw Exception EX("invalid type: " + toStr(res.get().type) + ", integer expected");
+    }
+            
+    bool next(uint64_t & v) {
+        msgpack::unpacked res;
+        if (!_up.next(&res)) {
+            return false;
+        }
+        if (res.get().type == msgpack::type::POSITIVE_INTEGER) {
+            v = res.get().via.u64;
+            return true;
+        }
+        throw Exception EX("invalid type: " + toStr(res.get().type) + ", positive integer expected");
+    }
 
+    template<typename T_>
+    T_ get() {
+        T_ v;
+        if (!next(v)) {
+            throw Exception EX("unpack buffer underflow, expected: " + toStr(typeid(T_).name()));
+        }
+        return v;
+    }
+    
     Unpacker(const void * data, size_t size) {
         _up.reserve_buffer(size);
         memcpy(_up.buffer(), data, size);

@@ -66,6 +66,16 @@ ZAddr getEndpoint(zmq::socket_t & sock) {
     return ZAddr::parse(endpoint);
 }
 
+/********** class Stream *****************************************/
+class Stream {
+  public:
+    int        sid;
+    Transcoder trc;
+
+    Stream(int s) : sid(s) {}
+};
+
+
 /******** class MainLoop *******************************************/
 MainLoop::MainLoop() : _context(1),
     _pullSock(_context, ZMQ_PULL),
@@ -130,7 +140,7 @@ void MainLoop::onCommand() {
     zmq::message_t msg;
     while (_pullSock.recv(&msg, ZMQ_DONTWAIT)) {
         Unpacker up(msg.data(), msg.size());
-        int type = int(up.get<mtype::POSITIVE_INTEGER>());
+        int type = up.get<int>();
         
         if (type == MSG_HALT) {
             Log<<"got halt"<<endl;
@@ -138,7 +148,7 @@ void MainLoop::onCommand() {
             return;
         }
         if (type == MSG_PING) {
-            int64_t uuid = up.get<mtype::POSITIVE_INTEGER>();
+            int64_t uuid = up.get<int64_t>();
             if (uuid != _uuid) {
                 Err<<"got wrong ping uuid: "<<uuid<<" != "<<_uuid<<endl;
             } else {
@@ -148,7 +158,7 @@ void MainLoop::onCommand() {
             continue;
         }
         if (type == MSG_JSON) {
-            Json::Value json = parseJson(up.getStr());
+            Json::Value json = parseJson(up.get<std::string>());
             Log<<"got json: "<<json.toStyledString()<<endl;
             handleCommandJson(json);
             continue;
@@ -169,11 +179,14 @@ void MainLoop::handleCommandJson(const Json::Value & json) {
 }
 
 void MainLoop::openStream(int sid, const string & name) {
-    auto it = _name2sid.find(name);
-    if (it != _name2sid.end() && it->second != sid) {
-        throw Exception EX("stream: " + toStr(name) + " already registered");
+    auto it = _streams.find(name);
+    if (it != _streams.end()) { //   && it->second.sid != sid) {
+        if (it->second->sid != sid) {
+            throw Exception EX("stream: " + toStr(name) + " already registered");
+        }
+        return;
     }
-    _name2sid[name] = sid;
+    _streams[name] = make_shared<Stream>(sid);
 
     Log<<"media subscribe: "<<name<<endl;
     Packer nPack;
@@ -215,8 +228,15 @@ void MainLoop::fileStream(const string & fileName) {
             Err<<"failed to find video stream in "<<fileName<<endl;
             return;
         }
+        AVStream * stream = fmtCtx->streams[idx];
+        AVRational timeBase = stream->time_base;
+        
+        Blob cfg;
+        if (stream->codec->extradata) {
+            cfg.assign(stream->codec->extradata, stream->codec->extradata + stream->codec->extradata_size);
+        }
 
-        Log<<"stream codec: "<<codec->name<<", long name: "<<codec->long_name<<endl;
+        Log<<"file: "<<fileName<<", codec: "<<codec->name<<endl;
 
         AVPacket packet;
         av_init_packet(&packet);
@@ -228,7 +248,7 @@ void MainLoop::fileStream(const string & fileName) {
         while (av_read_frame(fmtCtx, &packet) >= 0) {
             if (packet.stream_index != idx) {
                 continue;
-            }
+            }            
             Packer pack;
             pack.put(FILE_PREFIX + fileName);
             zmq::message_t msg = toZmsg(pack);
@@ -238,6 +258,7 @@ void MainLoop::fileStream(const string & fileName) {
             if (packet.flags & AV_PKT_FLAG_KEY) {
                 pack.put(MSG_CODEC);
                 pack.put(string(codec->name));
+                pack.putRaw(cfg.data(), cfg.size());
             }
             pack.put(MSG_FRAME);
             pack.putRaw(packet.data, packet.size);
@@ -245,10 +266,14 @@ void MainLoop::fileStream(const string & fileName) {
             msg = toZmsg(pack);
             sock.send(msg);
             
+            int64_t ts = (1000 * timeBase.num * packet.pts) / timeBase.den;
             if (ts0 == 0) {
-                ts0 = packet.pts;
+                ts0 = ts;
             }
-            usleep(unsigned(packet.pts - ts0) * 1000);
+            int pause = int(std::max(ts - ts0, 0LL));
+            //Log<<"sleep: "<<pause<<"ms"<<endl;
+            usleep(pause * 1000);
+            ts0 = std::max(ts, int64_t(0));
                             
             av_free_packet(&packet);
         }
@@ -268,11 +293,32 @@ void MainLoop::onMedia() {
         throw Exception EX("media message body not received");
     }
     
-    Unpacker unpack(head.data(), head.size());
-    string stream = unpack.getStr();
+    Unpacker hUnp(head.data(), head.size());
+    string stream = hUnp.get<string>();
     
+    auto it = _streams.find(stream);
+    if (it == _streams.end()) {
+        Err<<"stream not found: "<<stream<<endl;
+        return;
+    }
     
-    Log<<"------ got stream frame: "<<stream<<endl;
+    Unpacker bUnp(body.data(), body.size());
+    int msg;
+    while (bUnp.next(msg)) {
+        if (msg == MSG_CODEC) {
+            string codec = bUnp.get<string>();
+            Blob conf = bUnp.get<Blob>();
+            it->second->trc.initDecoder(codec, conf);
+            Log<<"init decoder: "<<codec<<", config: "<<conf.size()<<endl;
+        } else if (msg == MSG_FRAME) {
+            object_raw raw = bUnp.get<object_raw>();
+            it->second->trc.decode(raw.ptr, raw.size);
+            Log<<"decode frame: "<<raw.size<<endl;
+        } else {
+            Err<<"invalid message type"<<endl;
+            return;
+        }
+    }
 }
 
 }
