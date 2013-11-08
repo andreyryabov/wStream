@@ -12,6 +12,8 @@
 #include "Common.h"
 #include "Exception.h"
 
+#define EX(str) ((toStr(__FILE__) + ":" + toStr(__LINE__) + " [" + __PRETTY_FUNCTION__ + "] " + wStream::toStr(str)))
+
 #define LOC ((toStr(__FILE__) + ":" + toStr(__LINE__) + " [" + toStr(__PRETTY_FUNCTION__) + "]\n> "))
 
 #define Err (wStream::_clog_<<"ERROR ["<<wStream::timeNowStr()<<"] at "<<LOC)
@@ -32,6 +34,14 @@
 
 
 namespace wStream {
+
+template<typename T_>
+T_ * nullEx(T_ * v, const std::string & msg) {
+    if (!v) {
+        throw Exception(msg);
+    }
+    return v;
+}
 
 void openLogFile(const std::string &);
 
@@ -60,6 +70,8 @@ template<typename T_>
 class Holder : std::unique_ptr<T_, std::function<void(T_*)>> {
     typedef std::unique_ptr<T_, std::function<void(T_*)>> Base;
   public:
+    using Type = T_;
+  
     T_ * operator -> () const {
         return Base::operator->();
     }
@@ -70,6 +82,10 @@ class Holder : std::unique_ptr<T_, std::function<void(T_*)>> {
     
     operator bool() const {
         return Base::operator bool();
+    }
+    
+    T_ * release() {
+        return Base::release();
     }
     
     Holder(T_ * h = nullptr) : Holder<T_>(h, std::default_delete<T_>()) {

@@ -10,10 +10,6 @@
 #define mKernel_Exception_h
 
 #include <stdexcept>
-#include "Utils.h"
-
-
-#define EX(str) ((toStr(__FILE__) + ":" + toStr(__LINE__) + " [" + __PRETTY_FUNCTION__ + "] " + wStream::toStr(str)))
 
 namespace wStream {
 

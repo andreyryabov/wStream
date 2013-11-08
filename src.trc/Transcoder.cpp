@@ -1,4 +1,4 @@
-//
+ //
 //  Transcoder.cpp
 //  wStream
 //
@@ -24,34 +24,29 @@ Transcoder::Transcoder() {
 }
 
 Transcoder::~Transcoder() {
-    avcodec_close(_deCtx);
-    av_free(_deCtx);
-    avcodec_close(_enCtx);
-    av_free(_enCtx);
     av_free_packet(&_packet);
     avpicture_free ((AVPicture*)_scFrame);    
     av_frame_free(&_scFrame);
     sws_freeContext(_scaler);
 }
     
-void Transcoder::initDecoder(const string & codec) {
-    if (_decoder) {
-        if (_decoder->name == codec) {
-            return;
-        }
-        avcodec_close(_deCtx);
-        av_free(_deCtx);
-        _deCtx = nullptr;
+void Transcoder::initDecoder(const string & codec, const string & bitstream, uint8_t * ex, size_t exSize) {
+    if (bitstream.size()) {
+        _bitstreamFilter = decltype(_bitstreamFilter) {
+            nullEx(av_bitstream_filter_init(bitstream.c_str()), EX("bitstream filter not found: " + bitstream)),
+            [](AVBitStreamFilterContext * p) { av_bitstream_filter_close(p);}
+        };
+    } else {
+        _bitstreamFilter = decltype(_bitstreamFilter)();
     }
-    _decoder = avcodec_find_decoder_by_name(codec.c_str());
-    if (!_decoder) {
-        throw Exception EX("decoder not found: " + codec);
-    }
-    _deCtx = avcodec_alloc_context3(_decoder);
-    if (!_deCtx) {
-        throw Exception EX("failed to allocate decoder context");
-    }
-    if (avcodec_open2(_deCtx, _decoder, nullptr) < 0) {
+    _decoder = nullEx(avcodec_find_decoder_by_name(codec.c_str()), EX("decoder not found: " + codec));
+    _deCtx   = decltype(_deCtx) {
+        nullEx(avcodec_alloc_context3(_decoder), EX("decoder context allocation failed")),
+        [](AVCodecContext * c) { avcodec_close(c); av_free(c); }
+    };
+    _deCtx->extradata = ex;
+    _deCtx->extradata_size = int(exSize);
+    if (avcodec_open2(_deCtx.get(), _decoder, nullptr) < 0) {
         throw Exception EX("failed to open decoder context");
     }
 }
@@ -64,33 +59,42 @@ void Transcoder::decode(const void * data, size_t size, bool isKey) {
     if (isKey) {
         packet.flags |= AV_PKT_FLAG_KEY;
     }
+    
+    Holder<uint8_t> ref;
+    if (_bitstreamFilter) {
+        uint8_t * buf = nullptr;
+        int bufSize = 0;
+        int res = av_bitstream_filter_filter(
+                    _bitstreamFilter.get(), nullptr, nullptr,
+                    &buf, &bufSize, packet.data, packet.size, isKey);
+        if (res > 0) {
+            ref = Holder<uint8_t>(buf, [](uint8_t * p){ av_free(p);});
+        }
+        if (res < 0) {
+            throw Exception EX("bitstream decoding failed");
+        }
+        packet.data = buf;
+        packet.size = bufSize;
+    }
+        
     int gotFrame = 0;
-    int res = avcodec_decode_video2(_deCtx, _deFrame, &gotFrame, &packet);
+    int res = avcodec_decode_video2(_deCtx.get(), _deFrame, &gotFrame, &packet);
     if (res < 0) {
         Err<<"failed to decode packet"<<endl;
         return;
     }
     if (gotFrame) {
         _hasFrame = true;
-    }    
+    }
 }
 
 void Transcoder::initEncoder(const EncoderConfig & cfg) {
     _encConfig = cfg;
-    _encoder = nullptr;
-    if (_enCtx) {
-        avcodec_close(_enCtx);
-        av_free(_enCtx);
-        _enCtx = nullptr;
-    }
-    _encoder = avcodec_find_encoder_by_name(_encConfig.name);
-    if (!_encoder) {
-        throw Exception EX("failed to open encoder context");
-    }
-    _enCtx = avcodec_alloc_context3(_encoder);
-    if (!_enCtx) {
-        throw Exception EX("failed to open encoder context");
-    }
+    _encoder   = nullEx(avcodec_find_encoder_by_name(_encConfig.name), EX("encoder not found: " + toStr(cfg.name)));
+    _enCtx     = decltype(_enCtx) {
+        nullEx(avcodec_alloc_context3(_encoder), EX("encoder context allocation failed")),
+        [](AVCodecContext * c) { avcodec_close(c); av_free(c); }
+    };
     _enCtx->bit_rate  = _encConfig.bitrate;
     _enCtx->width     = _encConfig.width;
     _enCtx->height    = _encConfig.height;
@@ -105,7 +109,7 @@ void Transcoder::initEncoder(const EncoderConfig & cfg) {
     _scFrame->width   = _encConfig.width;
     _scFrame->height  = _encConfig.height;
     
-    if (avcodec_open2(_enCtx, _encoder, nullptr) < 0) {
+    if (avcodec_open2(_enCtx.get(), _encoder, nullptr) < 0) {
         throw Exception EX("failed to open decoder context");
     }
 }
@@ -114,7 +118,6 @@ bool Transcoder::encode(const void * & ptr, size_t & size, bool & isKey) {
     if (!_hasFrame) {
         return false;
     }
-
     _scaler = sws_getCachedContext(_scaler,
             _deFrame->width, _deFrame->height, _deCtx->pix_fmt,
             _encConfig.width, _encConfig.height, PIXEL_FORMAT,
@@ -126,7 +129,7 @@ bool Transcoder::encode(const void * & ptr, size_t & size, bool & isKey) {
     av_free_packet(&_packet);
     
     int gotPacket = 0;
-    if (avcodec_encode_video2(_enCtx, &_packet, _scFrame, &gotPacket) < 0) {
+    if (avcodec_encode_video2(_enCtx.get(), &_packet, _scFrame, &gotPacket) < 0) {
         Err<<"failed to encode frame"<<endl;
         return false;
     }
