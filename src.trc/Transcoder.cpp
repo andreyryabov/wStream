@@ -117,6 +117,9 @@ bool Transcoder::encode(const void * & ptr, size_t & size, bool & isKey) {
     if (!_hasFrame) {
         return false;
     }
+    if (!_encoder) {
+        throw Exception EX("encoder is not initialized");
+    }
     _scaler = sws_getCachedContext(_scaler,
             _deFrame->width, _deFrame->height, _deCtx->pix_fmt,
             _encConfig.width, _encConfig.height, PIXEL_FORMAT,

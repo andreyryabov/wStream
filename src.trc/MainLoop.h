@@ -25,6 +25,9 @@ static const int MSG_PING  = 3;
 static const int MSG_FRAME = 4;
 static const int MSG_CODEC = 5;
 
+using Timer = std::chrono::steady_clock;
+using Timestamp = Timer::time_point;
+
 class ZAddr {
   public:
     std::string proto;
@@ -54,9 +57,10 @@ class MainLoop {
     void onCommand();
     void handleCommandJson(const Json::Value &);
     void openStream(int sid, const std::string & name);
-    void fileStream(const std::string & name);
+    void fileStream(const std::string & file, const std::string & channel);
     
     void onMedia();
+    int  transcode();
   
     zmq::context_t  _context;
     zmq::socket_t   _pullSock;
@@ -66,9 +70,6 @@ class MainLoop {
     
     int64_t  _uuid;
     bool     _running{true};
-    
-    using Timer = std::chrono::steady_clock;
-    using Timestamp = Timer::time_point;
     
     Timestamp _pingTs;
     std::map<std::string, std::shared_ptr<Stream>> _streams;

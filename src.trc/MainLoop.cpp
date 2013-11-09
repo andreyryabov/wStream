@@ -22,8 +22,8 @@ static const string CMD = "_cmd_";
 static const string RES = "_res_";
 static const string SEQ = "_seq_";
 
-static const string FILE_PREFIX  = "file:";
-static const char * INPROC_MEDIA = "ipc:///tmp/mediatranscoder";
+static const string FILE_PREFIX   = "file:";
+static const string INPROC_PREFIX = "ipc:///tmp/media_";
 
 zmq::message_t toZmsg(Packer & buf) {
     zmq::message_t zmsg(buf.size());
@@ -71,6 +71,8 @@ class Stream {
   public:
     int        sid;
     Transcoder trc;
+    Timestamp  lastTs;
+    Timestamp  lastKey;
 
     Stream(int s) : sid(s) {}
 };
@@ -87,7 +89,6 @@ MainLoop::MainLoop() : _context(1),
 void MainLoop::init(const ZAddr & addr, int64_t uuid) {
     _uuid = uuid;
     _pushSock.connect(toStr(addr).c_str());
-    _subSock .connect(INPROC_MEDIA);
 
     _pullSock.bind("tcp://*:*");
     _pubSock .bind("tcp://*:*");
@@ -105,7 +106,7 @@ void MainLoop::run() {
     try {
         _pingTs = Timer::now();
         while (_running) {
-            zmq::poll(items, 2, 5000);
+            zmq::poll(items, 2, 100);
             if (items[0].revents & ZMQ_POLLIN) {
                 onCommand();
             }
@@ -116,6 +117,7 @@ void MainLoop::run() {
             if (diff > chrono::seconds(15)) {
                 throw Exception EX("keep alive timeout");
             }
+            transcode();
         }
     } catch (const exception & e) {
         Err<<"main loop error: "<<toStr(e)<<endl;
@@ -180,13 +182,20 @@ void MainLoop::handleCommandJson(const Json::Value & json) {
 
 void MainLoop::openStream(int sid, const string & name) {
     auto it = _streams.find(name);
-    if (it != _streams.end()) { //   && it->second.sid != sid) {
+    if (it != _streams.end()) {
         if (it->second->sid != sid) {
             throw Exception EX("stream: " + toStr(name) + " already registered");
         }
         return;
     }
+    EncoderConfig conf;
+    conf.gopSize = 1000;
+    conf.width   = 144;
+    conf.height  = 108;
+    conf.bitrate = 100000;
+    
     _streams[name] = make_shared<Stream>(sid);
+    _streams[name]->trc.initEncoder(conf);
 
     Log<<"media subscribe: "<<name<<endl;
     Packer nPack;
@@ -195,38 +204,35 @@ void MainLoop::openStream(int sid, const string & name) {
     
     if (name.find(FILE_PREFIX) == 0) {
         string fileName = name.substr(FILE_PREFIX.size(), name.length());
-        thread t{[=]() {this->fileStream(fileName);}};
+        string enc = name;
+        enc.replace(enc.begin(), enc.end(), '.', 'D');
+        enc.replace(enc.begin(), enc.end(), '/', 'D');
+        enc.replace(enc.begin(), enc.end(), ' ', 'W');
+        enc = INPROC_PREFIX + enc;
+        _subSock.connect(enc.c_str());
+        thread t{[=]() {this->fileStream(fileName, enc);}};
         t.detach();
     }
 }
 
-void MainLoop::fileStream(const string & fileName) {
+void MainLoop::fileStream(const string & fileName, const string & channel) {
+    AVFormatContext * fmtCtx = nullptr;
     try {
         zmq::socket_t sock(_context, ZMQ_PUB);
-        sock.bind(INPROC_MEDIA);
-
-        AVFormatContext * fmtCtx = nullptr;
+        sock.bind(channel.c_str());
+  
         if (avformat_open_input(&fmtCtx, fileName.c_str(), nullptr, nullptr) < 0) {
-            char buf[1024];
-            char * res = getcwd(buf, sizeof(buf));
-            Err<<"failed to open video file: "<<fileName;
-            if (res) {
-                Err<<", being in the directory: "<<res;
-            }
-            Err<<endl;
-            return;
+            throw Exception EX("failed to open video file: " + fileName);
         }
 
         if (avformat_find_stream_info(fmtCtx, nullptr) < 0) {
-            Err<<"failed to find stream info in "<<fileName<<endl;
-            return;
+            throw Exception EX("failed to find stream info in " + fileName);
         }
         
         AVCodec * codec = nullptr;
         int idx = av_find_best_stream(fmtCtx, AVMEDIA_TYPE_VIDEO, -1, -1, &codec, 0);
         if (idx < 0) {
-            Err<<"failed to find video stream in "<<fileName<<endl;
-            return;
+            throw Exception EX("failed to find video stream in file: " + fileName);
         }
         AVStream * stream = fmtCtx->streams[idx];
         AVRational timeBase = stream->time_base;
@@ -236,7 +242,7 @@ void MainLoop::fileStream(const string & fileName) {
             cfg.assign(stream->codec->extradata, stream->codec->extradata + stream->codec->extradata_size);
         }
 
-        Log<<"file: "<<fileName<<", codec: "<<codec->name<<endl;
+        Log<<"open file: "<<fileName<<", codec: "<<codec->name<<endl;
 
         AVPacket packet;
         av_init_packet(&packet);
@@ -244,42 +250,47 @@ void MainLoop::fileStream(const string & fileName) {
         packet.data = nullptr;
         packet.size = 0;
         int64_t ts0 = 0;
-            
-        while (av_read_frame(fmtCtx, &packet) >= 0) {
-            if (packet.stream_index != idx) {
-                continue;
-            }            
-            Packer pack;
-            pack.put(FILE_PREFIX + fileName);
-            zmq::message_t msg = toZmsg(pack);
-            sock.send(msg, ZMQ_SNDMORE);
-            
-            pack.clear();
-            if (packet.flags & AV_PKT_FLAG_KEY) {
-                pack.put(MSG_CODEC);
-                pack.put(string(codec->name));
-                pack.putRaw(cfg.data(), cfg.size());
+        
+        for (;;) {
+            while (av_read_frame(fmtCtx, &packet) >= 0) {
+                if (packet.stream_index != idx) {
+                    continue;
+                }            
+                Packer pack;
+                pack.put(FILE_PREFIX + fileName);
+                zmq::message_t msg = toZmsg(pack);
+                sock.send(msg, ZMQ_SNDMORE);
+                
+                pack.clear();
+                if (packet.flags & AV_PKT_FLAG_KEY) {
+                    pack.put(MSG_CODEC);
+                    pack.put(string(codec->name));
+                    pack.putRaw(cfg.data(), cfg.size());
+                }
+                pack.put(MSG_FRAME);
+                pack.putRaw(packet.data, packet.size);
+                
+                msg = toZmsg(pack);
+                sock.send(msg);
+                Log<<"file: "<<fileName<<", read frame: "<<pack.size()<<endl;
+                
+                int64_t ts = (1000 * timeBase.num * packet.pts) / timeBase.den;
+                if (ts0 == 0) {
+                    ts0 = ts;
+                }
+                int pause = int(std::max(ts - ts0, 0LL));
+                usleep(pause * 1000);
+                ts0 = std::max(ts, int64_t(0));
+                                
+                av_free_packet(&packet);
             }
-            pack.put(MSG_FRAME);
-            pack.putRaw(packet.data, packet.size);
-            
-            msg = toZmsg(pack);
-            sock.send(msg);
-            
-            int64_t ts = (1000 * timeBase.num * packet.pts) / timeBase.den;
-            if (ts0 == 0) {
-                ts0 = ts;
-            }
-            int pause = int(std::max(ts - ts0, 0LL));
-            //Log<<"sleep: "<<pause<<"ms"<<endl;
-            usleep(pause * 1000);
-            ts0 = std::max(ts, int64_t(0));
-                            
-            av_free_packet(&packet);
+            sleep(1);
+            avformat_seek_file(fmtCtx, idx, 0, 0, 1000, AVSEEK_FLAG_FRAME);
         }
     } catch (const exception & ex) {
         Err<<"exception in fileStream thread: "<<toStr(ex)<<endl;
     }
+    avformat_close_input(&fmtCtx);
 }
 
 void MainLoop::onMedia() {
@@ -287,7 +298,9 @@ void MainLoop::onMedia() {
     if (!_subSock.recv(&head, ZMQ_DONTWAIT)) {
         throw Exception EX("media message header not received");
     }
-    
+    if (!head.more()) {
+        throw Exception EX("media message has not body part");
+    }
     zmq::message_t body;
     if (!_subSock.recv(&body, ZMQ_DONTWAIT)) {
         throw Exception EX("media message body not received");
@@ -309,16 +322,56 @@ void MainLoop::onMedia() {
             string codec = bUnp.get<string>();
             Blob conf = bUnp.get<Blob>();
             it->second->trc.initDecoder(codec, conf);
-            Log<<"init decoder: "<<codec<<", config: "<<conf.size()<<endl;
+            Log<<"init decoder: "<<codec<<", config: "<<conf.size()<<", stream: "<<stream<<endl;
         } else if (msg == MSG_FRAME) {
             object_raw raw = bUnp.get<object_raw>();
             it->second->trc.decode(raw.ptr, raw.size);
-            Log<<"decode frame: "<<raw.size<<endl;
+            Log<<"decode frame: "<<raw.size<<", stream: "<<stream<<endl;
         } else {
             Err<<"invalid message type"<<endl;
             return;
         }
     }
+}
+
+int MainLoop::transcode() {
+    Timer::duration iInterval = chrono::milliseconds(1000 * 5);
+    Timer::duration pInterval = chrono::milliseconds(1000 / 3);
+    Timer::duration minD = pInterval;
+    
+    Timestamp now = Timer::now();
+    for (auto it : _streams) {
+        bool keyframe = false;
+        Timer::duration iDif = now - it.second->lastKey;
+        if (iDif >= iInterval) {
+            keyframe = true;
+        } else {
+            minD = std::min(iDif, minD);
+            Timer::duration pDif = now - it.second->lastTs;
+            if (pDif < pInterval) {
+                minD = std::min(pDif, minD);
+                continue;
+            }
+        }
+        if (keyframe) {
+            it.second->trc.keyframe();
+            it.second->lastKey = now;
+        }
+        it.second->lastTs = now;
+        
+        bool isKey = false;
+        const void * data = nullptr;
+        size_t size = 0;
+        if (it.second->trc.encode(data, size, isKey)) {
+            Packer pack;
+            pack.put(MSG_FRAME);
+            pack.put(it.second->sid);
+            pack.putRaw(data, size);
+            zmq::message_t msg = toZmsg(pack);
+            _pubSock.send(msg);
+        }
+    }
+    return int((minD.count() * 1000 * Timer::period::num) / Timer::period::den);
 }
 
 }

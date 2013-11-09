@@ -73,7 +73,7 @@ WStream.prototype.connect = function() {
             var frame = dec.parse();
             var name = self._sids[sid];
             if (name) {
-                console.log('frame', sid, name, frame);
+                console.log('frame', sid, name, frame.length);
             } else {
                 console.error('stream does not exists for sid: ' + sid, self._sids);
             }

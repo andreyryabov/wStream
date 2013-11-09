@@ -15,7 +15,7 @@
 namespace wStream {
 
 struct EncoderConfig {
-    const char * name;
+    const char * name = "mpeg1video";
     int width   = 144;
     int height  = 108;
     int bitrate = 50000;
@@ -49,7 +49,6 @@ class Transcoder {
     AVPacket         _packet;    
     bool             _hasFrame{ false };
     bool             _keyFrame{ false };
-
 };
 
 }
