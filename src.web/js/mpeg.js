@@ -23,31 +23,55 @@ var requestAnimFrame = (function(){
 			window.setTimeout(callback, 1000 / 60);
 		};
 })();
-		
-var jsmpeg = window.jsmpeg = function( url, opts ) {
-	opts = opts || {};
-	this.canvas = opts.canvas || document.createElement('canvas');
-	this.autoplay = !!opts.autoplay;
-	this.loop = !!opts.loop;
-	this.externalLoadCallback = opts.onload || null;
-	this.externalDecodeCallback = opts.ondecodeframe || null;
-	this.bwFilter = opts.bwFilter || false;
 
+
+		
+//var jsmpeg = window.jsmpeg = function( url, opts ) {
+//	opts = opts || {};
+//	this.canvas = opts.canvas || document.createElement('canvas');
+//	this.autoplay = !!opts.autoplay;
+//	this.loop = !!opts.loop;
+//	this.externalLoadCallback = opts.onload || null;
+//	this.externalDecodeCallback = opts.ondecodeframe || null;
+//	this.bwFilter = opts.bwFilter || false;
+//
+//	this.customIntraQuantMatrix = new Uint8Array(64);
+//	this.customNonIntraQuantMatrix = new Uint8Array(64);
+//	this.blockData = new Int32Array(64);
+//
+//	this.canvasContext = this.canvas.getContext('2d');
+//
+//	if( url instanceof WebSocket ) {
+//		this.client = url;
+//		this.client.onopen = this.initSocketClient.bind(this);
+//	} 
+//	else {
+//		this.load(url);
+//	}
+//};
+
+
+var jsmpeg = window.jsmpeg = function(canvas) {
+	this.canvas = canvas;
+	this.autoplay = true;
+	this.loop     = false;
+	this.externalLoadCallback = null;
+	this.externalDecodeCallback = null;
+	this.bwFilter = false;
 	this.customIntraQuantMatrix = new Uint8Array(64);
 	this.customNonIntraQuantMatrix = new Uint8Array(64);
 	this.blockData = new Int32Array(64);
-
 	this.canvasContext = this.canvas.getContext('2d');
+ 
+    //from init Socket client.
+	this.buffer = new BitReader(new ArrayBuffer(this.socketBufferSize));
+	this.nextPictureBuffer = new BitReader(new ArrayBuffer(this.socketBufferSize));
+	this.nextPictureBuffer.writePos = 0;
+	this.nextPictureBuffer.chunkBegin = 0;
+	this.nextPictureBuffer.lastWriteBeforeWrap = 0;
+}
 
-	if( url instanceof WebSocket ) {
-		this.client = url;
-		this.client.onopen = this.initSocketClient.bind(this);
-	} 
-	else {
-		this.load(url);
-	}
-};
-
+//window.MPEGStream.prototype = jsmpeg;
 
 
 // ----------------------------------------------------------------------------
@@ -74,7 +98,7 @@ jsmpeg.prototype.decodeSocketHeader = function( data ) {
 	// over websockets:
 	// struct { char magic[4] = "jsmp"; unsigned short width, height; };
 	if( 
-		data[0] == SOCKET_MAGIC_BYTES.charCodeAt(0) && 
+		data[0] == SOCKET_MAGIC_BYTES.charCodeAt(0) &&
 		data[1] == SOCKET_MAGIC_BYTES.charCodeAt(1) && 
 		data[2] == SOCKET_MAGIC_BYTES.charCodeAt(2) && 
 		data[3] == SOCKET_MAGIC_BYTES.charCodeAt(3)
@@ -85,8 +109,8 @@ jsmpeg.prototype.decodeSocketHeader = function( data ) {
 	}
 };
 
-jsmpeg.prototype.receiveSocketMessage = function( event ) {
-	var messageData = new Uint8Array(event.data);
+jsmpeg.prototype.receiveSocketMessage = function(data) {
+	var messageData = new Uint8Array(data);
 
 	if( !this.sequenceStarted ) {
 		this.decodeSocketHeader(messageData);
@@ -493,7 +517,11 @@ jsmpeg.prototype.initBuffers = function() {
 	this.canvas.height = this.height;
 	
 	this.currentRGBA = this.canvasContext.getImageData(0, 0, this.width, this.height);
-	this.currentRGBA32 = new Uint32Array( this.currentRGBA.data.buffer );
+
+	if( this.bwFilter ) {
+		// This fails in IE10; don't use the bwFilter if you need to support it.
+		this.currentRGBA32 = new Uint32Array( this.currentRGBA.data.buffer );
+	}
 	this.fillArray(this.currentRGBA.data, 255);
 };
 
@@ -931,23 +959,23 @@ jsmpeg.prototype.copyMacroblock = function(motionH, motionV, sY, sCr, sCb ) {
 	dest = (this.mbRow * width + this.mbCol) << 2;
 	last = dest + (width << 2);
 
-	var y11, y21, y12, y22, y;
+	var y1, y2, y;
 	if( oddH ) {
 		if( oddV ) {
 			while( dest < last ) {
-				y21 = sY[src]; y22 = sY[src+width]; src++;
+				y1 = sY[src] + sY[src+width]; src++;
 				for( var x = 0; x < 4; x++ ) {
-					y11 = y21; y12 = y22; y21 = sY[src]; y22 = sY[src+width]; src++;
-					y = (((y11 + y21 + y12 + y22 + 2) >> 2) & 0xff);
+					y2 = sY[src] + sY[src+width]; src++;
+					y = (((y1 + y2 + 2) >> 2) & 0xff);
 
-					y11 = y21; y12 = y22; y21 = sY[src]; y22 = sY[src+width]; src++;
-					y |= (((y11 + y21 + y12 + y22 + 2) << 6) & 0xff00);
+					y1 = sY[src] + sY[src+width]; src++;
+					y |= (((y1 + y2 + 2) << 6) & 0xff00);
 					
-					y11 = y21; y12 = y22; y21 = sY[src]; y22 = sY[src+width]; src++;
-					y |= (((y11 + y21 + y12 + y22 + 2) << 14) & 0xff0000);
+					y2 = sY[src] + sY[src+width]; src++;
+					y |= (((y1 + y2 + 2) << 14) & 0xff0000);
 
-					y11 = y21; y12 = y22; y21 = sY[src]; y22 = sY[src+width]; src++;
-					y |= (((y11 + y21 + y12 + y22 + 2) << 22) & 0xff000000);
+					y1 = sY[src] + sY[src+width]; src++;
+					y |= (((y1 + y2 + 2) << 22) & 0xff000000);
 
 					dY[dest++] = y;
 				}
@@ -956,19 +984,19 @@ jsmpeg.prototype.copyMacroblock = function(motionH, motionV, sY, sCr, sCb ) {
 		}
 		else {
 			while( dest < last ) {
-				y21 = sY[src]; src++;
+				y1 = sY[src++];
 				for( var x = 0; x < 4; x++ ) {
-					y11 = y21; y21 = sY[src]; src++;
-					y = (((y11 + y21 + 1) >> 1) & 0xff);
+					y2 = sY[src++];
+					y = (((y1 + y2 + 1) >> 1) & 0xff);
 					
-					y11 = y21; y21 = sY[src]; src++;
-					y |= (((y11 + y21 + 1) << 7) & 0xff00);
+					y1 = sY[src++];
+					y |= (((y1 + y2 + 1) << 7) & 0xff00);
 					
-					y11 = y21; y21 = sY[src]; src++;
-					y |= (((y11 + y21 + 1) << 15) & 0xff0000);
+					y2 = sY[src++];
+					y |= (((y1 + y2 + 1) << 15) & 0xff0000);
 					
-					y11 = y21; y21 = sY[src]; src++;
-					y |= (((y11 + y21 + 1) << 23) & 0xff000000);
+					y1 = sY[src++];
+					y |= (((y1 + y2 + 1) << 23) & 0xff000000);
 
 					dY[dest++] = y;
 				}
@@ -1025,34 +1053,34 @@ jsmpeg.prototype.copyMacroblock = function(motionH, motionV, sY, sCr, sCb ) {
 	dest = (this.mbRow * width + this.mbCol) << 1;
 	last = dest + (width << 1);
 	
-	var cr11, cr21, cr12, cr22, cr;
-	var cb11, cb21, cb12, cb22, cb;
+	var cr1, cr2, cr;
+	var cb1, cb2, cb;
 	if( oddH ) {
 		if( oddV ) {
 			while( dest < last ) {
-				cr21 = sCr[src]; cr22 = sCr[src+width];
-				cb21 = sCb[src]; cb22 = sCb[src+width];
+				cr1 = sCr[src] + sCr[src+width];
+				cb1 = sCb[src] + sCb[src+width];
 				src++;
 				for( var x = 0; x < 2; x++ ) {
-					cr11 = cr21; cr12 = cr22; cr21 = sCr[src]; cr22 = sCr[src+width];
-					cb11 = cb21; cb12 = cb22; cb21 = sCb[src]; cb22 = sCb[src+width]; src++;
-					cr = (((cr11 + cr21 + cr12 + cr22 + 2) >> 2) & 0xff);
-					cb = (((cb11 + cb21 + cb12 + cb22 + 2) >> 2) & 0xff);
+					cr2 = sCr[src] + sCr[src+width];
+					cb2 = sCb[src] + sCb[src+width]; src++;
+					cr = (((cr1 + cr2 + 2) >> 2) & 0xff);
+					cb = (((cb1 + cb2 + 2) >> 2) & 0xff);
 
-					cr11 = cr21; cr12 = cr22; cr21 = sCr[src]; cr22 = sCr[src+width];
-					cb11 = cb21; cb12 = cb22; cb21 = sCb[src]; cb22 = sCb[src+width]; src++;
-					cr |= (((cr11 + cr21 + cr12 + cr22 + 2) << 6) & 0xff00);
-					cb |= (((cb11 + cb21 + cb12 + cb22 + 2) << 6) & 0xff00);
+					cr1 = sCr[src] + sCr[src+width];
+					cb1 = sCb[src] + sCb[src+width]; src++;
+					cr |= (((cr1 + cr2 + 2) << 6) & 0xff00);
+					cb |= (((cb1 + cb2 + 2) << 6) & 0xff00);
 
-					cr11 = cr21; cr12 = cr22; cr21 = sCr[src]; cr22 = sCr[src+width];
-					cb11 = cb21; cb12 = cb22; cb21 = sCb[src]; cb22 = sCb[src+width]; src++;
-					cr |= (((cr11 + cr21 + cr12 + cr22 + 2) << 14) & 0xff0000);
-					cb |= (((cb11 + cb21 + cb12 + cb22 + 2) << 14) & 0xff0000);
+					cr2 = sCr[src] + sCr[src+width];
+					cb2 = sCb[src] + sCb[src+width]; src++;
+					cr |= (((cr1 + cr2 + 2) << 14) & 0xff0000);
+					cb |= (((cb1 + cb2 + 2) << 14) & 0xff0000);
 
-					cr11 = cr21; cr12 = cr22; cr21 = sCr[src]; cr22 = sCr[src+width];
-					cb11 = cb21; cb12 = cb22; cb21 = sCb[src]; cb22 = sCb[src+width]; src++;
-					cr |= (((cr11 + cr21 + cr12 + cr22 + 2) << 22) & 0xff000000);
-					cb |= (((cb11 + cb21 + cb12 + cb22 + 2) << 22) & 0xff000000);
+					cr1 = sCr[src] + sCr[src+width];
+					cb1 = sCb[src] + sCb[src+width]; src++;
+					cr |= (((cr1 + cr2 + 2) << 22) & 0xff000000);
+					cb |= (((cb1 + cb2 + 2) << 22) & 0xff000000);
 
 					dCr[dest] = cr;
 					dCb[dest] = cb;
@@ -1063,29 +1091,29 @@ jsmpeg.prototype.copyMacroblock = function(motionH, motionV, sY, sCr, sCb ) {
 		}
 		else {
 			while( dest < last ) {
-				cr21 = sCr[src];
-				cb21 = sCb[src];
+				cr1 = sCr[src];
+				cb1 = sCb[src];
 				src++;
 				for( var x = 0; x < 2; x++ ) {
-					cr11 = cr21; cr21 = sCr[src];
-					cb11 = cb21; cb21 = sCb[src]; src++;
-					cr = (((cr11 + cr21 + 1) >> 1) & 0xff);
-					cb = (((cb11 + cb21 + 1) >> 1) & 0xff);
+					cr2 = sCr[src];
+					cb2 = sCb[src++];
+					cr = (((cr1 + cr2 + 1) >> 1) & 0xff);
+					cb = (((cb1 + cb2 + 1) >> 1) & 0xff);
 
-					cr11 = cr21; cr21 = sCr[src];
-					cb11 = cb21; cb21 = sCb[src]; src++;
-					cr |= (((cr11 + cr21 + 1) << 7) & 0xff00);
-					cb |= (((cb11 + cb21 + 1) << 7) & 0xff00);
+					cr1 = sCr[src];
+					cb1 = sCb[src++];
+					cr |= (((cr1 + cr2 + 1) << 7) & 0xff00);
+					cb |= (((cb1 + cb2 + 1) << 7) & 0xff00);
 
-					cr11 = cr21; cr21 = sCr[src];
-					cb11 = cb21; cb21 = sCb[src]; src++;
-					cr |= (((cr11 + cr21 + 1) << 15) & 0xff0000);
-					cb |= (((cb11 + cb21 + 1) << 15) & 0xff0000);
+					cr2 = sCr[src];
+					cb2 = sCb[src++];
+					cr |= (((cr1 + cr2 + 1) << 15) & 0xff0000);
+					cb |= (((cb1 + cb2 + 1) << 15) & 0xff0000);
 
-					cr11 = cr21; cr21 = sCr[src];
-					cb11 = cb21; cb21 = sCb[src]; src++;
-					cr |= (((cr11 + cr21 + 1) << 23) & 0xff000000);
-					cb |= (((cb11 + cb21 + 1) << 23) & 0xff000000);
+					cr1 = sCr[src];
+					cb1 = sCb[src++];
+					cr |= (((cr1 + cr2 + 1) << 23) & 0xff000000);
+					cb |= (((cb1 + cb2 + 1) << 23) & 0xff000000);
 
 					dCr[dest] = cr;
 					dCb[dest] = cb;

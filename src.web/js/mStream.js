@@ -7,6 +7,15 @@ var msg = {
     FRAME: 4
 };
 
+function str2ab(str) {
+    var buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
+    var bufView = new Uint16Array(buf);
+    for (var i=0, strLen=str.length; i<strLen; i++) {
+        bufView[i] = str.charCodeAt(i);
+    }
+    return buf;
+}
+
 function WStream(url) {
     this._url = url;
     this._group = null;
@@ -27,11 +36,11 @@ WStream.prototype.group = function(g) {
     this._sendJson({group: this._group});
 }
 
-WStream.prototype.stream = function(name) {
+WStream.prototype.stream = function(name, canvas) {
     if (this._name2str[name]) {
         throw Error('stream alreay open: ' + name);
     }
-    var str = new VideoStream(name);
+    var str = new VideoStream(name, canvas);
     this._name2str[name] = str;
     if (this._isConnected) {
         this._sendJson({stream: this._streams[i]});
@@ -67,10 +76,10 @@ WStream.prototype.connect = function() {
         if (cmd == msg.FRAME) {
             var sid   = dec.parse();
             var key   = dec.parse();
-            var frame = dec.parse();
+            var frame = dec.parse(true);
             var str   = self._sid2str[sid];
             if (str) {
-                str._onFrame(key, str);
+                str._onFrame(key, frame);
             } else {
                 console.error('no such stream: ' + sid, self._sids);
             }
@@ -114,19 +123,16 @@ WStream.prototype.close = function() {
     this._socket.close();
 }
 
-function VideoStream(name) {
+function VideoStream(name, canvas) {
     this.name    = name;
     this.sid     = null;
     this._canvas = null;
-}
-
-VideoStream.prototype.attachCanvas = function(canvas) {
-    this._canvas = canvas;
+    this._mpeg   = new jsmpeg(canvas);
 }
 
 VideoStream.prototype._onFrame = function(isKey, frame) {
-//    console.log('stream[' + this.sid + '] ' + this.name + ', isKey ' + isKey);
-    
+    console.log('stream[' + this.sid + '] ' + this.name + ', isKey ' + isKey + ', frame: ', frame.byteLength);
+    this._mpeg.receiveSocketMessage(frame);
 }
 
 

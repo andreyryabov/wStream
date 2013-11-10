@@ -7,6 +7,7 @@ var ws    = require('ws'),
 
 function Handler(socket) {
     var self = this;
+    this._first  = true;
     this._socket = socket;
     this._socket.on('message', function(data) {
         console.log('message', data);
@@ -56,6 +57,13 @@ Handler.prototype._group = function(cid) {
     this._proc = pc.open(cid);
     var self = this;
     this._proc.on('frame', function(sid, key, frame) {
+        if (self._first) {
+            if (!key) {
+                return;
+            }
+            self._first = false;
+            frame = Buffer.concat([new Buffer('jsmp'), new Buffer(frame)]).toString();
+        }
         var pack = mpack.packer();
         pack.put(msg.FRAME);
         pack.put(sid);

@@ -196,14 +196,14 @@ Decoder.prototype.array = function (length) {
   }
   return value;
 };
-Decoder.prototype.parse = function () {
+Decoder.prototype.parse = function (preferArrayBuffer) {
   var type = this.view.getUint8(this.offset);
   var value, length;
   // FixRaw
   if ((type & 0xe0) === 0xa0) {
     length = type & 0x1f;
     this.offset++;
-    return this.raw(length);
+    return preferArrayBuffer ? this.buf(length) : this.raw(length);
   }
   // FixMap
   if ((type & 0xf0) === 0x80) {
@@ -233,12 +233,12 @@ Decoder.prototype.parse = function () {
   case 0xda:
     length = this.view.getUint16(this.offset + 1);
     this.offset += 3;
-    return this.raw(length);
+    return preferArrayBuffer ? this.buf(length) : this.raw(length);
   // raw 32
   case 0xdb:
     length = this.view.getUint32(this.offset + 1);
     this.offset += 5;
-    return this.raw(length);
+    return preferArrayBuffer ? this.buf(length) : this.raw(length);
   // nil
   case 0xc0:
     this.offset++;
