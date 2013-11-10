@@ -5,6 +5,7 @@
     "dependencies": {
         "ws"      : "*",
         "zmq"     : "*",
-        "msgpack" : "*"
+        "msgpack" : "*",
+        "process" : "*"
     }
 }

@@ -6,10 +6,12 @@ var exec   = require('child_process'),
     fs     = require('fs'),
     zmq    = require('zmq'),
     os     = require('os'),
+    proc   = require('process'),
     conf   = require('./_config.js').transcoder,
     msg    = require('./_config.js').consts.msg,
     mpack  = require('./mpack.js');
 
+    
 var MSG = '_msg_';
 
 function getAddressByInterface(name) {
@@ -174,9 +176,10 @@ Runtime.prototype.msg_started = function(obj) {
         var dat = mpack.unpacker(data);
         var cmd = dat.get();
         if (cmd == msg.FRAME) {
-            var sid = dat.get();
+            var sid   = dat.get();
+            var key   = dat.get();
             var frame = dat.get();
-            self.emit('frame', sid, frame);
+            self.emit('frame', sid, key, frame);
             return;
         }
         console.error('media socket, invalid command', cmd);
@@ -207,9 +210,11 @@ Runtime.prototype.stream = function(stream) {
     }
     sid = this._sidsGen++;
     this._streams[stream] = sid;
-    
     this.message(msg.JSON, {stream:{name:stream,sid:sid}});
-    
+    proc.nextTick(function() {
+        //TODO:. request
+        console.log('TODO: request keyframe for stream: ' + stream);        
+    });
     return sid;
 }
 
@@ -221,9 +226,9 @@ function Process(rt) {
     this.streams  = {};
     this.sids     = {};
     this._runtime = rt;
-    this._frameListener = function(sid, frame) {
+    this._frameListener = function(sid, key, frame) {
         if (self.sids[sid]) {
-            self.emit('frame', sid, frame);
+            self.emit('frame', sid, key, frame);
         }
     };
     rt.on('frame', this._frameListener);

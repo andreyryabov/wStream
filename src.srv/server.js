@@ -1,7 +1,7 @@
 'use strict';
 
 var ws    = require('ws'),
-    pc    = require('./process.js'),
+    pc    = require('./transcoder.js'),
     msg   = require('./_config.js').consts.msg,
     mpack = require('./mpack.js');
 
@@ -55,10 +55,11 @@ Handler.prototype._group = function(cid) {
     }
     this._proc = pc.open(cid);
     var self = this;
-    this._proc.on('frame', function(sid, frame) {
+    this._proc.on('frame', function(sid, key, frame) {
         var pack = mpack.packer();
         pack.put(msg.FRAME);
         pack.put(sid);
+        pack.put(key);
         pack.put(frame);
         self._socket.send(pack.buffer());
     });

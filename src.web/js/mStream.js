@@ -10,9 +10,9 @@ var msg = {
 function WStream(url) {
     this._url = url;
     this._group = null;
-    this._streams = [];
-    this._sids    = {};
-    this._isConnected = false;
+    this._name2str = {};
+    this._sid2str  = {};
+    this._isConnected =  false;
 }
 
 WStream.prototype.group = function(g) {
@@ -27,18 +27,16 @@ WStream.prototype.group = function(g) {
     this._sendJson({group: this._group});
 }
 
-WStream.prototype.stream = function(s) {
-    for (var i = 0; i < this._streams.length; i++ ) {
-        if (this._streams[i] == s) {
-            console.error('stream: ' + s + ', already on');
-            return;
-        }
+WStream.prototype.stream = function(name) {
+    if (this._name2str[name]) {
+        throw Error('stream alreay open: ' + name);
     }
-    this._streams.push(s);
-    if (!this._isConnected) {
-        return;
+    var str = new VideoStream(name);
+    this._name2str[name] = str;
+    if (this._isConnected) {
+        this._sendJson({stream: this._streams[i]});
     }
-    this._sendJson({stream: this._streams[i]});
+    return str;
 }
 
 WStream.prototype.connect = function() {
@@ -52,14 +50,12 @@ WStream.prototype.connect = function() {
         if (self._group) {
             self._sendJson({group: self._group});
         }
-        if (self._streams.length > 0) {
-            for (var i = 0; i < self._streams.length; i++ ) {
-                self._sendJson({stream: self._streams[i]});
-            }
+        for (var name in self._name2str) {
+            self._sendJson({stream: name});
         }
     }
     this._socket.onmessage = function(evt) {
-        console.log('onmessage', evt, evt.data);
+        //console.log('onmessage', evt, evt.data);
         var dec = msgpack.decoder(evt.data);
         var cmd = dec.parse();
         if (cmd == msg.JSON) {
@@ -69,13 +65,14 @@ WStream.prototype.connect = function() {
             return;
         }
         if (cmd == msg.FRAME) {
-            var sid = dec.parse();
+            var sid   = dec.parse();
+            var key   = dec.parse();
             var frame = dec.parse();
-            var name = self._sids[sid];
-            if (name) {
-                console.log('frame', sid, name, frame.length);
+            var str   = self._sid2str[sid];
+            if (str) {
+                str._onFrame(key, str);
             } else {
-                console.error('stream does not exists for sid: ' + sid, self._sids);
+                console.error('no such stream: ' + sid, self._sids);
             }
             return;
         }
@@ -86,7 +83,21 @@ WStream.prototype.connect = function() {
 WStream.prototype._handleJson = function(json) {
     if (json.streams) {
         for (var name in json.streams) {
-            this._sids[json.streams[name]] = name;
+            var str = this._name2str[name];
+            if (!str) {
+                console.error('not such stream', name, sid);
+                continue;
+            }
+            var sid = json.streams[name];
+            if (!str.sid) {
+                str.sid = sid;
+                this._sid2str[sid] = str;
+                continue;
+            }
+            if (str.sid != sid) {
+                console.error('sid changed', str.sid, sid);
+                continue;
+            }
         }
         return;
     }
@@ -101,6 +112,21 @@ WStream.prototype._sendJson = function(obj) {
 WStream.prototype.close = function() {
     console.log('close wstream, ' + this._logId);
     this._socket.close();
+}
+
+function VideoStream(name) {
+    this.name    = name;
+    this.sid     = null;
+    this._canvas = null;
+}
+
+VideoStream.prototype.attachCanvas = function(canvas) {
+    this._canvas = canvas;
+}
+
+VideoStream.prototype._onFrame = function(isKey, frame) {
+//    console.log('stream[' + this.sid + '] ' + this.name + ', isKey ' + isKey);
+    
 }
 
 

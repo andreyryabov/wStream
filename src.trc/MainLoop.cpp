@@ -366,9 +366,11 @@ int MainLoop::transcode() {
             Packer pack;
             pack.put(MSG_FRAME);
             pack.put(it.second->sid);
+            pack.put(isKey);
             pack.putRaw(data, size);
             zmq::message_t msg = toZmsg(pack);
             _pubSock.send(msg);
+Log<<"key="<<isKey<<", sid="<<it.second->sid<<endl;
         }
     }
     return int((minD.count() * 1000 * Timer::period::num) / Timer::period::den);

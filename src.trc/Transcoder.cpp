@@ -128,10 +128,9 @@ bool Transcoder::encode(const void * & ptr, size_t & size, bool & isKey) {
     sws_scale(_scaler, _deFrame->data, _deFrame->linesize, 0, _deFrame->height, _scFrame->data, _scFrame->linesize);
     av_free_packet(&_packet);
     
-    if (_keyFrame) {
-        _keyFrame = false;
-        _scFrame->pict_type = AV_PICTURE_TYPE_I;
-    }
+    _scFrame->pict_type = _keyFrame ? AV_PICTURE_TYPE_I : AV_PICTURE_TYPE_NONE;
+    _keyFrame = false;
+    
     int gotPacket = 0;
     if (avcodec_encode_video2(_enCtx.get(), &_packet, _scFrame, &gotPacket) < 0) {
         Err<<"failed to encode frame"<<endl;

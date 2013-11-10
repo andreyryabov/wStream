@@ -45,7 +45,7 @@
 		764D60DE181A6A4000E9BAB4 /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
 		764D60E0181A6A4000E9BAB4 /* server.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = server.js; sourceTree = "<group>"; };
 		764D60E3181A6D8200E9BAB4 /* mpeg.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = mpeg.js; sourceTree = "<group>"; };
-		764D60E5181ACFE400E9BAB4 /* process.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = process.js; sourceTree = "<group>"; };
+		764D60E5181ACFE400E9BAB4 /* transcoder.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = transcoder.js; sourceTree = "<group>"; };
 		764D60E6181AD0CF00E9BAB4 /* _config.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = _config.js; sourceTree = "<group>"; };
 		764D60E8181AE25B00E9BAB4 /* libzmq.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libzmq.a; path = /usr/local/lib/libzmq.a; sourceTree = "<absolute>"; };
 		764D60EA181BCB8E00E9BAB4 /* Utils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Utils.h; sourceTree = "<group>"; };
@@ -167,7 +167,7 @@
 				764D60F81823D61800E9BAB4 /* package.json */,
 				764D60E6181AD0CF00E9BAB4 /* _config.js */,
 				764D60E0181A6A4000E9BAB4 /* server.js */,
-				764D60E5181ACFE400E9BAB4 /* process.js */,
+				764D60E5181ACFE400E9BAB4 /* transcoder.js */,
 				764D60F91823E55A00E9BAB4 /* mpack.js */,
 			);
 			path = src.srv;
