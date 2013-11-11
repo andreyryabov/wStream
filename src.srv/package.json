@@ -3,9 +3,9 @@
     "version": "0.0.1",
     "private": true,
     "dependencies": {
-        "ws"      : "*",
-        "zmq"     : "*",
-        "msgpack" : "*",
-        "process" : "*"
+        "ws"       : "*",
+        "zmq"      : "*",
+        "msgpack"  : "git+https://github.com/andreyryabov/node-msgpack.git",
+        "process"  : "*"
     }
 }

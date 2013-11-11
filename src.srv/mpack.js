@@ -34,7 +34,9 @@ Packer.prototype.put = function(obj) {
 }
 
 Packer.prototype.buffer = function() {
-    return Buffer.concat(this._bufs);
+    var buf = Buffer.concat(this._bufs);
+    this._bufs = [buf];
+    return buf;
 }
 
 exports.unpacker = function(buf) { return new Unpacker(buf); }

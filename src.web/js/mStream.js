@@ -7,15 +7,6 @@ var msg = {
     FRAME: 4
 };
 
-function str2ab(str) {
-    var buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
-    var bufView = new Uint16Array(buf);
-    for (var i=0, strLen=str.length; i<strLen; i++) {
-        bufView[i] = str.charCodeAt(i);
-    }
-    return buf;
-}
-
 function WStream(url) {
     this._url = url;
     this._group = null;
@@ -131,7 +122,7 @@ function VideoStream(name, canvas) {
 }
 
 VideoStream.prototype._onFrame = function(isKey, frame) {
-    console.log('stream[' + this.sid + '] ' + this.name + ', isKey ' + isKey + ', frame: ', frame.byteLength);
+    //console.log('stream[' + this.sid + '] ' + this.name + ', isKey ' + isKey + ', frame: ', frame.byteLength);
     this._mpeg.receiveSocketMessage(frame);
 }
 

@@ -29,6 +29,7 @@ class Transcoder {
     void initDecoder(const std::string & name, const Blob & extra);
     void initEncoder(const EncoderConfig &);
 
+    void dumpFile(const std::string &);
     void decode(const void * data, size_t,  bool isKey = false);
     bool encode(const void * &, size_t &, bool & isKey);
     void keyframe();    
@@ -49,6 +50,8 @@ class Transcoder {
     AVPacket         _packet;    
     bool             _hasFrame{ false };
     bool             _keyFrame{ false };
+    bool             _dump    { false };
+    std::ofstream    _dumpStream;
 };
 
 }

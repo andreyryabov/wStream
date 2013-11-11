@@ -196,6 +196,7 @@ void MainLoop::openStream(int sid, const string & name) {
     
     _streams[name] = make_shared<Stream>(sid);
     _streams[name]->trc.initEncoder(conf);
+    //_streams[name]->trc.dumpFile("../data/" + toStr(sid) + ".mpg");
 
     Log<<"media subscribe: "<<name<<endl;
     Packer nPack;
@@ -249,9 +250,11 @@ void MainLoop::fileStream(const string & fileName, const string & channel) {
 
         packet.data = nullptr;
         packet.size = 0;
-        int64_t ts0 = 0;
+
         
         for (;;) {
+            int64_t ts0 = 0;
+            
             while (av_read_frame(fmtCtx, &packet) >= 0) {
                 if (packet.stream_index != idx) {
                     continue;
@@ -278,7 +281,7 @@ void MainLoop::fileStream(const string & fileName, const string & channel) {
                 if (ts0 == 0) {
                     ts0 = ts;
                 }
-                int pause = int(std::max(ts - ts0, 0LL));
+                int pause = int(std::max(ts - ts0, 50LL));
                 usleep(pause * 1000);
                 ts0 = std::max(ts, int64_t(0));
                                 
@@ -368,9 +371,9 @@ int MainLoop::transcode() {
             pack.put(it.second->sid);
             pack.put(isKey);
             pack.putRaw(data, size);
+            pack.put(size);
             zmq::message_t msg = toZmsg(pack);
             _pubSock.send(msg);
-Log<<"key="<<isKey<<", sid="<<it.second->sid<<endl;
         }
     }
     return int((minD.count() * 1000 * Timer::period::num) / Timer::period::den);

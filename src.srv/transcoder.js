@@ -179,6 +179,11 @@ Runtime.prototype.msg_started = function(obj) {
             var sid   = dat.get();
             var key   = dat.get();
             var frame = dat.get();
+            var size  = dat.get();
+            if (frame.length != size) {
+                throw Error('invalid frame length, check node-msgpack raw decoding');
+            }
+            //fs.appendFile('../data/rt_' + sid + '.mpg', frame, {flag: 'a'});
             self.emit('frame', sid, key, frame);
             return;
         }

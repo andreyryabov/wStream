@@ -1,12 +1,14 @@
 'use strict';
 
 var ws    = require('ws'),
+    fs    = require('fs'),
     pc    = require('./transcoder.js'),
     msg   = require('./_config.js').consts.msg,
     mpack = require('./mpack.js');
 
 function Handler(socket) {
     var self = this;
+    this._dumpFiles = {};
     this._first  = true;
     this._socket = socket;
     this._socket.on('message', function(data) {
@@ -35,6 +37,11 @@ Handler.prototype._cleanup = function() {
         this._proc.close();
         this._proc = null;
     }
+    if (this._dumpFiles) {
+        for (var sid in this._dumpFiles) {
+            fs.closeSync(this._dumpFiles[sid]);
+        }
+    }
 }
 
 Handler.prototype._message = function(type) {
@@ -57,19 +64,32 @@ Handler.prototype._group = function(cid) {
     this._proc = pc.open(cid);
     var self = this;
     this._proc.on('frame', function(sid, key, frame) {
+        if (self._dumpFiles) {
+            var fbuf = new Buffer(frame);
+            var file = self._dumpFiles[sid];
+            if (!file) {
+                var fName = 'sid_' + sid + '.mpg';
+                file = fs.openSync(fName, 'a');
+                fs.ftruncateSync(file);
+                self._dumpFiles[sid] = file;
+            }
+            fs.write(file, fbuf, 0, fbuf.length);
+        }
         if (self._first) {
             if (!key) {
                 return;
             }
             self._first = false;
-            frame = Buffer.concat([new Buffer('jsmp'), new Buffer(frame)]).toString();
+            frame = Buffer.concat([new Buffer('jsmp'), new Buffer(frame)]);
         }
         var pack = mpack.packer();
         pack.put(msg.FRAME);
         pack.put(sid);
         pack.put(key);
         pack.put(frame);
-        self._socket.send(pack.buffer());
+        var data = pack.buffer();
+        self._socket.send(data);
+
     });
 }
 

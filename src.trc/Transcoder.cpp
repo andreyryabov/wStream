@@ -30,6 +30,11 @@ Transcoder::~Transcoder() {
     sws_freeContext(_scaler);
 }
     
+void Transcoder::dumpFile(const std::string & file) {
+    _dump = true;
+    _dumpStream.open(file, ios::binary|ios::trunc);
+}
+    
 void Transcoder::initDecoder(const string & codec, const Blob & extra) {
     if (_decoder && codec == _decoder->name && _extra == extra) {
         return;
@@ -135,11 +140,14 @@ bool Transcoder::encode(const void * & ptr, size_t & size, bool & isKey) {
     if (avcodec_encode_video2(_enCtx.get(), &_packet, _scFrame, &gotPacket) < 0) {
         Err<<"failed to encode frame"<<endl;
         return false;
-    }    
+    }
     if (gotPacket) {
         ptr   = _packet.data;
         size  = _packet.size;
         isKey = _packet.flags & AV_PKT_FLAG_KEY;
+        if (_dump) {
+            _dumpStream.write((char*)ptr, size);
+        }
     }
     return gotPacket;
 }
