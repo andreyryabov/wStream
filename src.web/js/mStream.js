@@ -7,36 +7,50 @@ var msg = {
     FRAME: 4
 };
 
-function WStream(url) {
-    this._url = url;
-    this._group = null;
-    this._name2str = {};
-    this._sid2str  = {};
-    this._isConnected =  false;
+function merge() {
+    var result = {};
+    for (var i = 0; i < arguments.length; i++ ) {
+        for (var k in arguments[i]) {
+            result[k] = arguments[i][k];
+        }
+    }
+    return result;
 }
 
-WStream.prototype.group = function(g) {
+function WStream(url) {
+    this._url         = url;
+    this._group       = null;
+    this._name2str    = {};
+    this._sid2str     = {};
+    this._isConnected = false;
+}
+
+WStream.prototype.group = function(g, params) {
+    this._groupParams = params || {width:144, height:108, fps:3, keyFrameIntervalMs:5000};
     if (this._group && this._group != g) {
         console.error('group is already set');
         return;
     }
     this._group = g;
-    if (!this._isConnected) {
-        return;
+    if (this._isConnected) {
+        this._sendJson({group: this._group, params:this._groupParams});
     }
-    this._sendJson({group: this._group});
 }
 
-WStream.prototype.stream = function(name, canvas) {
+WStream.prototype.stream = function(name, canvas, params) {
+    if (!this._group) {
+        throw Error('group is not set');
+    }
     if (this._name2str[name]) {
         throw Error('stream alreay open: ' + name);
     }
+    
     var str = new VideoStream(name, canvas);
+    str._params = merge(this._groupParams, params);    
     this._name2str[name] = str;
     if (this._isConnected) {
-        this._sendJson({stream: this._streams[i]});
+        this._sendJson({stream: this._streams[i], params:str._params});
     }
-    return str;
 }
 
 WStream.prototype.connect = function() {
@@ -48,14 +62,13 @@ WStream.prototype.connect = function() {
         console.log('wstream connected', self._socket);
         self._isConnected = true;
         if (self._group) {
-            self._sendJson({group: self._group});
+            self._sendJson({group: self._group, params: self._groupParams});
         }
         for (var name in self._name2str) {
-            self._sendJson({stream: name});
+            self._sendJson({stream: name, params: self._name2str[name]._params});
         }
     }
     this._socket.onmessage = function(evt) {
-        //console.log('onmessage', evt, evt.data);
         var dec = msgpack.decoder(evt.data);
         var cmd = dec.parse();
         if (cmd == msg.JSON) {
@@ -88,13 +101,13 @@ WStream.prototype._handleJson = function(json) {
                 console.error('not such stream', name, sid);
                 continue;
             }
-            var sid = json.streams[name];
+            var streamData = json.streams[name];
             if (!str.sid) {
-                str.sid = sid;
-                this._sid2str[sid] = str;
+                str._init(streamData.sid, streamData.width, streamData.height);
+                this._sid2str[streamData.sid] = str;
                 continue;
             }
-            if (str.sid != sid) {
+            if (str.sid != streamData.sid) {
                 console.error('sid changed', str.sid, sid);
                 continue;
             }
@@ -117,12 +130,33 @@ WStream.prototype.close = function() {
 function VideoStream(name, canvas) {
     this.name    = name;
     this.sid     = null;
-    this._canvas = null;
-    this._mpeg   = new jsmpeg(canvas);
+    this.width   = null;
+    this.height  = null;
+    this._params = null;
+    this._canvas = canvas;
+    this._mpeg   = null;
+    this.onStart = null; // event on first key frame.
+    this.started = false;
+}
+
+VideoStream.prototype._init = function(sid, width, height) {
+    this.sid     = sid;
+    this.width   = width;
+    this.height  = height;
+    this._mpeg   = new jsmpeg(this._canvas, width, height);
+    this._canvas.width  = width;
+    this._canvas.height = height;
 }
 
 VideoStream.prototype._onFrame = function(isKey, frame) {
-    //console.log('stream[' + this.sid + '] ' + this.name + ', isKey ' + isKey + ', frame: ', frame.byteLength);
+    if (!this.started) {
+        if (isKey) {
+            this.started = true;
+            if (this.onStart) {
+                this.onStart(width, height);
+            }
+        }
+    }
     this._mpeg.receiveSocketMessage(frame);
 }
 

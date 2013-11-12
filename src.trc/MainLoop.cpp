@@ -172,15 +172,19 @@ void MainLoop::onCommand() {
 void MainLoop::handleCommandJson(const Json::Value & json) {
     if (json.isMember("stream")) {
         string name = json["stream"]["name"].asString();
-        int     sid = json["stream"]["sid"].asInt();
-        openStream(sid, name);
+        int     sid = json["stream"]["sid"] .asInt();        
+        EncoderConfig cfg;
+        cfg.width   = json["stream"]["width"]  .asInt();
+        cfg.height  = json["stream"]["height"] .asInt();
+        cfg.bitrate = json["stream"]["bitrate"].asInt();
+        openStream(sid, name, cfg);
         return;
     }
     Err<<"invalid json command "<<json.toStyledString()<<endl;
     throw Exception EX("invalid json command");
 }
 
-void MainLoop::openStream(int sid, const string & name) {
+void MainLoop::openStream(int sid, const string & name, const EncoderConfig & conf) {
     auto it = _streams.find(name);
     if (it != _streams.end()) {
         if (it->second->sid != sid) {
@@ -188,11 +192,6 @@ void MainLoop::openStream(int sid, const string & name) {
         }
         return;
     }
-    EncoderConfig conf;
-    conf.gopSize = 1000;
-    conf.width   = 144;
-    conf.height  = 108;
-    conf.bitrate = 100000;
     
     _streams[name] = make_shared<Stream>(sid);
     _streams[name]->trc.initEncoder(conf);
@@ -275,7 +274,7 @@ void MainLoop::fileStream(const string & fileName, const string & channel) {
                 
                 msg = toZmsg(pack);
                 sock.send(msg);
-                Log<<"file: "<<fileName<<", read frame: "<<pack.size()<<endl;
+                //Log<<"file: "<<fileName<<", read frame: "<<pack.size()<<endl;
                 
                 int64_t ts = (1000 * timeBase.num * packet.pts) / timeBase.den;
                 if (ts0 == 0) {
@@ -329,7 +328,7 @@ void MainLoop::onMedia() {
         } else if (msg == MSG_FRAME) {
             object_raw raw = bUnp.get<object_raw>();
             it->second->trc.decode(raw.ptr, raw.size);
-            Log<<"decode frame: "<<raw.size<<", stream: "<<stream<<endl;
+            //Log<<"decode frame: "<<raw.size<<", stream: "<<stream<<endl;
         } else {
             Err<<"invalid message type"<<endl;
             return;

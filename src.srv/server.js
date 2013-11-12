@@ -8,7 +8,7 @@ var ws    = require('ws'),
 
 function Handler(socket) {
     var self = this;
-    this._dumpFiles = {};
+    this._dumpFiles = null;
     this._first  = true;
     this._socket = socket;
     this._socket.on('message', function(data) {
@@ -16,10 +16,10 @@ function Handler(socket) {
         try {
             var msg = JSON.parse(data);
             if (msg.group) {
-                self._group(msg.group);
+                self._group(msg.group, msg.params);
             }
             if (msg.stream) {
-                self._stream(msg.stream);
+                self._stream(msg.stream, msg.params);
             }
         } catch(e) {
             console.error('failed while handling message', data, e, e.stack);
@@ -57,11 +57,11 @@ Handler.prototype._message = function(type) {
     this._socket.send(pack.buffer());
 }
 
-Handler.prototype._group = function(cid) {
+Handler.prototype._group = function(cid, params) {
     if (this._proc) {
         throw new Error('process already open');
     }
-    this._proc = pc.open(cid);
+    this._proc = pc.open(cid, params);
     var self = this;
     this._proc.on('frame', function(sid, key, frame) {
         if (self._dumpFiles) {
@@ -80,7 +80,6 @@ Handler.prototype._group = function(cid) {
                 return;
             }
             self._first = false;
-            frame = Buffer.concat([new Buffer('jsmp'), new Buffer(frame)]);
         }
         var pack = mpack.packer();
         pack.put(msg.FRAME);
@@ -89,15 +88,14 @@ Handler.prototype._group = function(cid) {
         pack.put(frame);
         var data = pack.buffer();
         self._socket.send(data);
-
     });
 }
 
-Handler.prototype._stream = function(sid) {
+Handler.prototype._stream = function(sid, params) {
     if (!this._proc) {
         throw new Error('invalid state, process not oopen');
     }
-    this._proc.stream(sid);
+    this._proc.stream(sid, params);
     this._message(msg.JSON, {streams: this._proc.streams});
 }
 

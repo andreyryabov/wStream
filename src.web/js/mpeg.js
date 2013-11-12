@@ -26,7 +26,7 @@ var requestAnimFrame = (function(){
     
 
 var jsmpeg = window.jsmpeg = function(canvas, width, height) {
-	this.canvas = canvas;
+	this.canvas   = canvas;
 	this.autoplay = true;
 	this.loop     = false;
 	this.externalLoadCallback = null;
@@ -44,8 +44,8 @@ var jsmpeg = window.jsmpeg = function(canvas, width, height) {
 	this.nextPictureBuffer.chunkBegin = 0;
 	this.nextPictureBuffer.lastWriteBeforeWrap = 0;
  
-    this.width = 144; // TODO: ....
-    this.height = 108;
+    this.width  = width; // TODO: ....
+    this.height = height;
 
     this.initBuffers();
 }
@@ -67,84 +67,6 @@ jsmpeg.prototype.receiveSocketMessage = function(data) {
             this.decodePicture();
         }
     }
-    return;
- 
-//	if( !this.sequenceStarted ) {
-//		this.decodeSocketHeader(messageData);
-//	}
-
-	var current = this.buffer;
-	var next = this.nextPictureBuffer;
-
-	if( next.writePos + messageData.length > next.length ) {
-		next.lastWriteBeforeWrap = next.writePos;
-		next.writePos = 0;
-		next.index = 0;
-	}
-	
-	next.bytes.set( messageData, next.writePos );
-	next.writePos += messageData.length;
-
-	var startCode = 0;
-	while( true ) {
-		startCode = next.findNextMPEGStartCode();
-		if( 
-			startCode == BitReader.NOT_FOUND ||
-			((next.index >> 3) > next.writePos)
-		) {
-			// We reached the end with no picture found yet; move back a few bytes
-			// in case we are at the beginning of a start code and exit.
-			next.index = Math.max((next.writePos-3), 0) << 3;
-			return;
-		}
-		else if( startCode == START_PICTURE ) {
-			break;
-		}
-	}
-
-	// If we are still here, we found the next picture start code!
-
-	
-	// Skip picture decoding until we find the first intra frame?
-	if( this.waitForIntraFrame ) {
-		next.advance(10); // skip temporalReference
-		if( next.getBits(3) == PICTURE_TYPE_I ) {
-			this.waitForIntraFrame = false;
-			next.chunkBegin = (next.index-13) >> 3;
-		}
-		return;
-	}
-
-	// Last picture hasn't been decoded yet? Decode now but skip output
-	// before scheduling the next one
-	if( !this.currentPictureDecoded ) {
-		this.decodePicture(DECODE_SKIP_OUTPUT);
-	}
-
-	
-	// Copy the picture chunk over to 'this.buffer' and schedule decoding.
-	var chunkEnd = ((next.index) >> 3);
-
-	if( chunkEnd > next.chunkBegin ) {
-		// Just copy the current picture chunk
-		current.bytes.set( next.bytes.subarray(next.chunkBegin, chunkEnd) );
-		current.writePos = chunkEnd - next.chunkBegin;
-	}
-	else {
-		// We wrapped the nextPictureBuffer around, so we have to copy the last part
-		// till the end, as well as from 0 to the current writePos
-		current.bytes.set( next.bytes.subarray(next.chunkBegin, next.lastWriteBeforeWrap) );
-		var written = next.lastWriteBeforeWrap - next.chunkBegin;
-		current.bytes.set( next.bytes.subarray(0, chunkEnd), written );
-		current.writePos = chunkEnd + written;
-	}
-
-	current.index = 0;
-	next.chunkBegin = chunkEnd;
-
-	// Decode!
-	this.currentPictureDecoded = false;
-	requestAnimFrame( this.scheduleDecoding.bind(this), this.canvas );
 };
 
 jsmpeg.prototype.scheduleDecoding = function() {
@@ -168,9 +90,6 @@ jsmpeg.prototype.recordBuffers = [];
 jsmpeg.prototype.canRecord = function(){
 	return (this.client && this.client.readyState == this.client.OPEN);
 };
-
-
-
 
 
 
@@ -262,8 +181,6 @@ jsmpeg.prototype.scheduleAnimation = function() {
 jsmpeg.prototype.decodeSequenceHeader = function() {
 	this.width = this.buffer.getBits(12);
 	this.height = this.buffer.getBits(12);
-
-    console.log('decodeSequenceHeader, width: ' + width + ', height: ' + height);
 
 	this.buffer.advance(4); // skip pixel aspect ratio
 	this.pictureRate = PICTURE_RATE[this.buffer.getBits(4)];
@@ -382,7 +299,6 @@ jsmpeg.prototype.decodePicture = function(skipOutput) {
         console.error('invalid picture type: ' + this.pictureCodingType);
 		return;
 	}
-    console.log('frame type: ' + this.pictureCodingType);
 	
 	// full_pel_forward, forward_f_code
 	if( this.pictureCodingType == PICTURE_TYPE_P ) {

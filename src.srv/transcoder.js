@@ -7,12 +7,20 @@ var exec   = require('child_process'),
     zmq    = require('zmq'),
     os     = require('os'),
     proc   = require('process'),
+    _      = require('underscore')._,
     conf   = require('./_config.js').transcoder,
     msg    = require('./_config.js').consts.msg,
     mpack  = require('./mpack.js');
 
     
 var MSG = '_msg_';
+var DEFAULT_STREAM = {
+       sid: null,
+      name: null,
+     width: 144,
+    height: 108,
+   bitrate: 70000
+};
 
 function getAddressByInterface(name) {
     var iface = os.networkInterfaces()[name];
@@ -86,8 +94,9 @@ function handleJson(rt, obj) {
     console.error('invalid json message from transcoder', msg);
 }
 
-function Runtime(name) {
+function Runtime(name, params) {
     this._name    = name;
+    this._params  = params;
     this._stopped = false;
     this._proc    = null;
     this._logId   = name;
@@ -162,8 +171,8 @@ Runtime.prototype.msg_started = function(obj) {
     this._subSock .connect('tcp://' + pullAddr + ':' + obj.media.port);
     
     for (var name in this._streams) {
-        var sid = this._streams[name];
-        this.message(msg.JSON, {stream:{name:name,sid:sid}});
+        var str = this._streams[name];
+        this.message(msg.JSON, {stream:str});
     }
     
     var self = this;
@@ -208,19 +217,24 @@ Runtime.prototype.message = function(type) {
     this._pushSock.send(pack.buffer());
 }
 
-Runtime.prototype.stream = function(stream) {
-    var sid = this._streams[stream];
-    if (sid) {
-        return sid;
+Runtime.prototype.stream = function(stream, params) {
+    var str = this._streams[stream];
+    if (str) {
+        return str;
     }
-    sid = this._sidsGen++;
-    this._streams[stream] = sid;
-    this.message(msg.JSON, {stream:{name:stream,sid:sid}});
+    var sid = this._sidsGen++;
+console.log('params', params);
+    str = _.defaults({sid:sid, name:stream}, params, this._params, DEFAULT_STREAM);
+console.log('str1, ', str);
+    str = _.pick(str, _.keys(DEFAULT_STREAM));
+console.log('str2, ', str);
+    this._streams[stream] = str;
+    this.message(msg.JSON, {stream:str});
     proc.nextTick(function() {
         //TODO:. request
         console.log('TODO: request keyframe for stream: ' + stream);        
     });
-    return sid;
+    return str;
 }
 
 /**
@@ -247,16 +261,16 @@ Process.prototype.close = function() {
     this.removeAllListeners();
 }
 
-Process.prototype.stream = function(stream) {
-    var sid = this._runtime.stream(stream);
-    this.streams[stream] = sid;
-    this.sids[sid] = stream;
+Process.prototype.stream = function(stream, params) {
+    var str = this._runtime.stream(stream, params);
+    this.streams[stream] = str;
+    this.sids[str.sid] = stream;
 }
 
-exports.open = function(name) {
+exports.open = function(name, params) {
     var rt = _name2runtime[name];
     if (rt == null) {
-        rt = new Runtime(name);
+        rt = new Runtime(name, params);
         rt.start();
         _name2runtime[name] = rt;
     }
