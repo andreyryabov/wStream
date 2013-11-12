@@ -14,12 +14,15 @@ var exec   = require('child_process'),
 
     
 var MSG = '_msg_';
+
 var DEFAULT_STREAM = {
        sid: null,
       name: null,
      width: 144,
     height: 108,
-   bitrate: 70000
+   bitrate: 70000,
+       fps: 3.5,
+   keyframeInterval: 5000
 };
 
 function getAddressByInterface(name) {
@@ -223,18 +226,19 @@ Runtime.prototype.stream = function(stream, params) {
         return str;
     }
     var sid = this._sidsGen++;
-console.log('params', params);
     str = _.defaults({sid:sid, name:stream}, params, this._params, DEFAULT_STREAM);
-console.log('str1, ', str);
     str = _.pick(str, _.keys(DEFAULT_STREAM));
-console.log('str2, ', str);
+
     this._streams[stream] = str;
     this.message(msg.JSON, {stream:str});
-    proc.nextTick(function() {
-        //TODO:. request
-        console.log('TODO: request keyframe for stream: ' + stream);        
-    });
     return str;
+}
+
+Runtime.prototype.keyframe = function(stream) {
+    var self = this;
+    proc.nextTick(function() {
+        self.message(msg.JSON, {keyframe:self._streams[stream].sid});
+    });
 }
 
 /**
@@ -265,6 +269,7 @@ Process.prototype.stream = function(stream, params) {
     var str = this._runtime.stream(stream, params);
     this.streams[stream] = str;
     this.sids[str.sid] = stream;
+    this._runtime.keyframe(stream);
 }
 
 exports.open = function(name, params) {

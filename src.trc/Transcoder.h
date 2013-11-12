@@ -26,7 +26,7 @@ typedef std::vector<uint8_t> Blob;
 
 class Transcoder {
   public:
-    void initDecoder(const std::string & name, const Blob & extra);
+    bool initDecoder(const std::string & name, const Blob & extra);
     void initEncoder(const EncoderConfig &);
 
     void dumpFile(const std::string &);

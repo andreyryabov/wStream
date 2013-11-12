@@ -44,7 +44,7 @@ var jsmpeg = window.jsmpeg = function(canvas, width, height) {
 	this.nextPictureBuffer.chunkBegin = 0;
 	this.nextPictureBuffer.lastWriteBeforeWrap = 0;
  
-    this.width  = width; // TODO: ....
+    this.width  = width; 
     this.height = height;
 
     this.initBuffers();
@@ -57,7 +57,6 @@ jsmpeg.prototype.onlostconnection = null;
 
 jsmpeg.prototype.receiveSocketMessage = function(data) {
     this.buffer = new BitReader(data);
- 
     while (true) {
         var code = this.buffer.findNextMPEGStartCode();
         if (code == BitReader.NOT_FOUND) {
@@ -73,7 +72,6 @@ jsmpeg.prototype.scheduleDecoding = function() {
 	this.decodePicture();
 	this.currentPictureDecoded = true;
 };
-
 
 
 // ----------------------------------------------------------------------------

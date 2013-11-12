@@ -69,11 +69,13 @@ ZAddr getEndpoint(zmq::socket_t & sock) {
 /********** class Stream *****************************************/
 class Stream {
   public:
-    int        sid;
-    Transcoder trc;
-    Timestamp  lastTs;
-    Timestamp  lastKey;
-
+    int             sid;
+    Transcoder      trc;
+    Timestamp       lastTs;
+    Timestamp       lastKey;
+    Timer::duration iFrameInterval;
+    Timer::duration pFrameInterval;
+    
     Stream(int s) : sid(s) {}
 };
 
@@ -106,7 +108,7 @@ void MainLoop::run() {
     try {
         _pingTs = Timer::now();
         while (_running) {
-            zmq::poll(items, 2, 100);
+            zmq::poll(items, 2, 50);
             if (items[0].revents & ZMQ_POLLIN) {
                 onCommand();
             }
@@ -171,20 +173,37 @@ void MainLoop::onCommand() {
 
 void MainLoop::handleCommandJson(const Json::Value & json) {
     if (json.isMember("stream")) {
-        string name = json["stream"]["name"].asString();
-        int     sid = json["stream"]["sid"] .asInt();        
-        EncoderConfig cfg;
-        cfg.width   = json["stream"]["width"]  .asInt();
-        cfg.height  = json["stream"]["height"] .asInt();
-        cfg.bitrate = json["stream"]["bitrate"].asInt();
+        const Json::Value & stream = json["stream"];
+        string name = stream["name"].asString();
+        int     sid = stream["sid"] .asInt();
+        StreamConfig cfg;
+        cfg.gopSize = 50;
+        cfg.width   = stream["width"]  .asInt();
+        cfg.height  = stream["height"] .asInt();
+        cfg.bitrate = stream["bitrate"].asInt();
+        cfg.pFrameInterval = chrono::milliseconds(int(1000 / stream["fps"].asDouble()));
+        cfg.iFrameInterval = chrono::milliseconds(stream["keyframeInterval"].asInt());
         openStream(sid, name, cfg);
+        return;
+    }
+    if (json.isMember("keyframe")) {
+        keyframe(json["keyframe"].asInt());
         return;
     }
     Err<<"invalid json command "<<json.toStyledString()<<endl;
     throw Exception EX("invalid json command");
 }
 
-void MainLoop::openStream(int sid, const string & name, const EncoderConfig & conf) {
+void MainLoop::keyframe(int sid) {
+    for (auto kv : _streams) {
+        Ptr<Stream> str = kv.second;
+        if (str->sid == sid) {
+            str->trc.keyframe();
+        }
+    }
+}
+
+void MainLoop::openStream(int sid, const string & name, const StreamConfig & conf) {
     auto it = _streams.find(name);
     if (it != _streams.end()) {
         if (it->second->sid != sid) {
@@ -195,6 +214,9 @@ void MainLoop::openStream(int sid, const string & name, const EncoderConfig & co
     
     _streams[name] = make_shared<Stream>(sid);
     _streams[name]->trc.initEncoder(conf);
+    _streams[name]->iFrameInterval = conf.iFrameInterval;
+    _streams[name]->pFrameInterval = conf.pFrameInterval;
+    
     //_streams[name]->trc.dumpFile("../data/" + toStr(sid) + ".mpg");
 
     Log<<"media subscribe: "<<name<<endl;
@@ -323,8 +345,9 @@ void MainLoop::onMedia() {
         if (msg == MSG_CODEC) {
             string codec = bUnp.get<string>();
             Blob conf = bUnp.get<Blob>();
-            it->second->trc.initDecoder(codec, conf);
-            Log<<"init decoder: "<<codec<<", config: "<<conf.size()<<", stream: "<<stream<<endl;
+            if (it->second->trc.initDecoder(codec, conf)) {
+                Log<<"init decoder: "<<codec<<", config: "<<conf.size()<<", stream: "<<stream<<endl;
+            }            
         } else if (msg == MSG_FRAME) {
             object_raw raw = bUnp.get<object_raw>();
             it->second->trc.decode(raw.ptr, raw.size);
@@ -337,20 +360,18 @@ void MainLoop::onMedia() {
 }
 
 int MainLoop::transcode() {
-    Timer::duration iInterval = chrono::milliseconds(1000 * 5);
-    Timer::duration pInterval = chrono::milliseconds(1000 / 3);
-    Timer::duration minD = pInterval;
+    Timer::duration minD = chrono::milliseconds(50);
     
     Timestamp now = Timer::now();
     for (auto it : _streams) {
         bool keyframe = false;
         Timer::duration iDif = now - it.second->lastKey;
-        if (iDif >= iInterval) {
+        if (iDif >= it.second->iFrameInterval) {
             keyframe = true;
         } else {
             minD = std::min(iDif, minD);
             Timer::duration pDif = now - it.second->lastTs;
-            if (pDif < pInterval) {
+            if (pDif < it.second->pFrameInterval) {
                 minD = std::min(pDif, minD);
                 continue;
             }

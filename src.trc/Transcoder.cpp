@@ -35,9 +35,9 @@ void Transcoder::dumpFile(const std::string & file) {
     _dumpStream.open(file, ios::binary|ios::trunc);
 }
     
-void Transcoder::initDecoder(const string & codec, const Blob & extra) {
+bool Transcoder::initDecoder(const string & codec, const Blob & extra) {
     if (_decoder && codec == _decoder->name && _extra == extra) {
-        return;
+        return false;
     }
     _extra   = extra;
     _decoder = nullEx(avcodec_find_decoder_by_name(codec.c_str()), EX("decoder not found: " + codec));
@@ -50,6 +50,7 @@ void Transcoder::initDecoder(const string & codec, const Blob & extra) {
     if (avcodec_open2(_deCtx.get(), _decoder, nullptr) < 0) {
         throw Exception EX("failed to open decoder context");
     }
+    return true;
 }
 
 void Transcoder::decode(const void * data, size_t size, bool isKey) {

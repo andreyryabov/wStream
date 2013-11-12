@@ -44,6 +44,12 @@ class ZAddr {
     static const std::regex RX_ADDR;
 };
 
+class StreamConfig : public EncoderConfig {
+  public:
+    Timer::duration iFrameInterval = std::chrono::milliseconds(1000 * 5);
+    Timer::duration pFrameInterval = std::chrono::milliseconds(1000 / 3);
+};
+
 class Stream;
 class MainLoop {
   public:
@@ -56,7 +62,8 @@ class MainLoop {
     
     void onCommand();
     void handleCommandJson(const Json::Value &);
-    void openStream(int sid, const std::string & name, const EncoderConfig &);
+    void openStream(int sid, const std::string & name, const StreamConfig &);
+    void keyframe(int sid);
     void fileStream(const std::string & file, const std::string & channel);
     
     void onMedia();
