@@ -39,12 +39,11 @@ WStream.prototype.group = function(g, params) {
 
 WStream.prototype.stream = function(name, canvas, params) {
     if (!this._group) {
-        throw Error('group is not set');
+        throw new Error('group is not set');
     }
     if (this._name2str[name]) {
-        throw Error('stream alreay open: ' + name);
-    }
-    
+        throw new Error('stream alreay open: ' + name);
+    }    
     var str = new VideoStream(name, canvas);
     str._params = merge(this._groupParams, params);    
     this._name2str[name] = str;

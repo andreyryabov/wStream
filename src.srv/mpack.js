@@ -13,7 +13,7 @@ Unpacker.prototype.has = function() {
 Unpacker.prototype.get = function() {
     var msg = msgpack.unpack(this._buf);
     if (msg == null) {
-        throw Error('buffer underflow');
+        throw new Error('buffer underflow');
     }
     if (msgpack.unpack.bytes_remaining > 0) {
         this._buf = this._buf.slice(
