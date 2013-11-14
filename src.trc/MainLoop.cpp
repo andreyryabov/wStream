@@ -156,7 +156,7 @@ void MainLoop::onCommand() {
             if (uuid != _uuid) {
                 Err<<"got wrong ping uuid: "<<uuid<<" != "<<_uuid<<endl;
             } else {
-                Log<<"got ping"<<endl;
+                //Log<<"got ping"<<endl;
                 _pingTs = Timer::now();
             }
             continue;
@@ -186,12 +186,23 @@ void MainLoop::handleCommandJson(const Json::Value & json) {
         openStream(sid, name, cfg);
         return;
     }
+    if (json.isMember("subscribe")) {
+        for (const Json::Value & v : json["subscribe"]) {
+            subscribe(v.asString());
+        }
+        return;
+    }
     if (json.isMember("keyframe")) {
         keyframe(json["keyframe"].asInt());
         return;
     }
     Err<<"invalid json command "<<json.toStyledString()<<endl;
     throw Exception EX("invalid json command");
+}
+
+void MainLoop::subscribe(const std::string & endpoint) {
+    Log<<"subscribe to: "<<endpoint<<endl;
+    _subSock.connect(endpoint.c_str());
 }
 
 void MainLoop::keyframe(int sid) {
@@ -272,7 +283,6 @@ void MainLoop::fileStream(const string & fileName, const string & channel) {
         packet.data = nullptr;
         packet.size = 0;
 
-        
         for (;;) {
             int64_t ts0 = 0;
             
@@ -286,12 +296,15 @@ void MainLoop::fileStream(const string & fileName, const string & channel) {
                 sock.send(msg, ZMQ_SNDMORE);
                 
                 pack.clear();
-                if (packet.flags & AV_PKT_FLAG_KEY) {
+                
+                bool isKey = packet.flags & AV_PKT_FLAG_KEY;
+                if (isKey) {
                     pack.put(MSG_CODEC);
                     pack.put(string(codec->name));
                     pack.putRaw(cfg.data(), cfg.size());
                 }
                 pack.put(MSG_FRAME);
+                pack.put(isKey);
                 pack.putRaw(packet.data, packet.size);
                 
                 msg = toZmsg(pack);
@@ -349,9 +362,11 @@ void MainLoop::onMedia() {
                 Log<<"init decoder: "<<codec<<", config: "<<conf.size()<<", stream: "<<stream<<endl;
             }            
         } else if (msg == MSG_FRAME) {
+            bool isKey = bUnp.get<bool>();
             object_raw raw = bUnp.get<object_raw>();
-            it->second->trc.decode(raw.ptr, raw.size);
-            //Log<<"decode frame: "<<raw.size<<", stream: "<<stream<<endl;
+            if (it->second->trc.decode(raw.ptr, raw.size, isKey)) {
+                //Log<<"frame decoded: "<<raw.size<<", stream: "<<stream<<endl;
+            }
         } else {
             Err<<"invalid message type"<<endl;
             return;

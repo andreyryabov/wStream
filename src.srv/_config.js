@@ -5,7 +5,8 @@ exports.transcoder = {
     logDir:          'logs',
     interface:       'lo0',
     restartInterval:  5000,
-    refcheckInterval: 5000,    
+    refcheckInterval: 5000,
+    publishers:      ['tcp://127.0.0.1:58127']
 }
 
 exports.consts = {

@@ -30,7 +30,7 @@ class Transcoder {
     void initEncoder(const EncoderConfig &);
 
     void dumpFile(const std::string &);
-    void decode(const void * data, size_t,  bool isKey = false);
+    bool decode(const void * data, size_t,  bool isKey = false);
     bool encode(const void * &, size_t &, bool & isKey);
     void keyframe();    
     

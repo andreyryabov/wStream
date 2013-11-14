@@ -173,6 +173,8 @@ Runtime.prototype.msg_started = function(obj) {
     this._pushSock.connect('tcp://' + pullAddr + ':' + obj.command.port);
     this._subSock .connect('tcp://' + pullAddr + ':' + obj.media.port);
     
+    this.message(msg.JSON, {subscribe:conf.publishers});
+    
     for (var name in this._streams) {
         var str = this._streams[name];
         this.message(msg.JSON, {stream:str});

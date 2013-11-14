@@ -53,44 +53,26 @@ bool Transcoder::initDecoder(const string & codec, const Blob & extra) {
     return true;
 }
 
-void Transcoder::decode(const void * data, size_t size, bool isKey) {
+bool Transcoder::decode(const void * data, size_t size, bool isKey) {
     if (!_decoder) {
-        return;
+        return false;
     }
     AVPacket packet;
     av_init_packet(&packet);
     packet.data = (uint8_t*)data;
     packet.size = int(size);
-    if (isKey) {
-        packet.flags |= AV_PKT_FLAG_KEY;
-    }
-    
-    Holder<uint8_t> ref;
-    if (_bitstreamFilter) {
-        uint8_t * buf = nullptr;
-        int bufSize = 0;
-        int res = av_bitstream_filter_filter(
-                    _bitstreamFilter.get(), nullptr, nullptr,
-                    &buf, &bufSize, packet.data, packet.size, isKey);
-        if (res > 0) {
-            ref = Holder<uint8_t>(buf, [](uint8_t * p){ av_free(p);});
-        }
-        if (res < 0) {
-            throw Exception EX("bitstream decoding failed");
-        }
-        packet.data = buf;
-        packet.size = bufSize;
-    }
-        
+    packet.flags |= isKey ? AV_PKT_FLAG_KEY : 0;
+            
     int gotFrame = 0;
     int res = avcodec_decode_video2(_deCtx.get(), _deFrame, &gotFrame, &packet);
     if (res < 0) {
         Err<<"failed to decode packet"<<endl;
-        return;
+        return false;
     }
     if (gotFrame) {
         _hasFrame = true;
     }
+    return true;
 }
 
 void Transcoder::initEncoder(const EncoderConfig & cfg) {

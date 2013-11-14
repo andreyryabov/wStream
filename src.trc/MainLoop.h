@@ -64,6 +64,7 @@ class MainLoop {
     void handleCommandJson(const Json::Value &);
     void openStream(int sid, const std::string & name, const StreamConfig &);
     void keyframe(int sid);
+    void subscribe(const std::string &);
     void fileStream(const std::string & file, const std::string & channel);
     
     void onMedia();
