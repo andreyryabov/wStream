@@ -1,4 +1,7 @@
+import os
+
 env = Environment(
+        ENV      = os.environ,
         CC       = 'clang',
         CCFLAGS  = '-O3 -g',
         CXX      = 'clang++', 
