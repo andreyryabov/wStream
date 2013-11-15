@@ -4,3 +4,5 @@ src.srv/logs/*
 src.srv/node_modules
 wStream.xcodeproj/project.xcworkspace/*
 wStream.xcodeproj/xcuserdata/*
+.sconsign.dblite
+build
