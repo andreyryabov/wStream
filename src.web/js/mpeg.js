@@ -1,31 +1,6 @@
 (function(window){ "use strict";
-
-// jsmpeg by Dominic Szablewski - phoboslab.org, github.com/phoboslab
-//
-// Consider this to be under MIT license. It's largely based an an Open Source
-// Decoder for Java under GPL, while I looked at another Decoder from Nokia 
-// (under no particular license?) for certain aspects.
-// I'm not sure if this work is "derivative" enough to have a different license
-// but then again, who still cares about MPEG1?
-//
-// Based on "Java MPEG-1 Video Decoder and Player" by Korandi Zoltan:
-// http://sourceforge.net/projects/javampeg1video/
-//
-// Inspired by "MPEG Decoder in Java ME" by Nokia:
-// http://www.developer.nokia.com/Community/Wiki/MPEG_decoder_in_Java_ME
-
-
-var requestAnimFrame = (function(){
-	return window.requestAnimationFrame ||
-		window.webkitRequestAnimationFrame ||
-		window.mozRequestAnimationFrame ||
-		function( callback ){
-			window.setTimeout(callback, 1000 / 60);
-		};
-})();
-    
-
-var jsmpeg = window.jsmpeg = function(canvas, width, height) {
+ 
+var jsmpeg = window.MPEGDecoder = function(canvas, width, height) {
 	this.canvas   = canvas;
 	this.autoplay = true;
 	this.loop     = false;
@@ -55,7 +30,7 @@ jsmpeg.prototype.socketBufferSize = 512 * 1024; // 512kb each
 jsmpeg.prototype.onlostconnection = null;
 
 
-jsmpeg.prototype.receiveSocketMessage = function(data) {
+jsmpeg.prototype.decodeFrame = function(data) {
     this.buffer = new BitReader(data);
     while (true) {
         var code = this.buffer.findNextMPEGStartCode();
@@ -68,29 +43,6 @@ jsmpeg.prototype.receiveSocketMessage = function(data) {
     }
 };
 
-jsmpeg.prototype.scheduleDecoding = function() {
-	this.decodePicture();
-	this.currentPictureDecoded = true;
-};
-
-
-// ----------------------------------------------------------------------------
-// Recording from WebSockets
-
-jsmpeg.prototype.isRecording = false;
-jsmpeg.prototype.recorderWaitForIntraFrame = false;
-jsmpeg.prototype.recordedFrames = 0;
-jsmpeg.prototype.recordedSize = 0;
-jsmpeg.prototype.didStartRecordingCallback = null;
-
-jsmpeg.prototype.recordBuffers = [];
-
-jsmpeg.prototype.canRecord = function(){
-	return (this.client && this.client.readyState == this.client.OPEN);
-};
-
-
-
 // ----------------------------------------------------------------------------
 // Utilities
 
@@ -102,24 +54,11 @@ jsmpeg.prototype.readCode = function(codeTable) {
 	return codeTable[state+2];
 };
 
-jsmpeg.prototype.findStartCode = function( code ) {
-	var current = 0;
-	while( true ) {
-		current = this.buffer.findNextMPEGStartCode();
-		if( current == code || current == BitReader.NOT_FOUND ) {
-			return current;
-		}
-	}
-	return BitReader.NOT_FOUND;
-};
-
 jsmpeg.prototype.fillArray = function(a, value) {
 	for( var i = 0, length = a.length; i < length; i++ ) {
 		a[i] = value;
 	}
 };
-
-
 
 // ----------------------------------------------------------------------------
 // Sequence Layer
@@ -136,68 +75,12 @@ jsmpeg.prototype.nextFrame = function() {
 		
 		if( code == START_SEQUENCE ) {
 			this.decodeSequenceHeader();
-		}
-		else if( code == START_PICTURE ) {
-			if( this.playing ) {
-				this.scheduleNextFrame();
-			}
+		} else if( code == START_PICTURE ) {
 			this.decodePicture();
 			return this.canvas;
-		}
-		else if( code == BitReader.NOT_FOUND ) {
-			this.stop(); // Jump back to the beginning
-
-			// Only loop if we found a sequence header
-			if( this.loop && this.sequenceStarted ) {
-				this.play();
-			}
+		} else if( code == BitReader.NOT_FOUND ) {
 			return null;
 		}
-		else {
-			// ignore (GROUP, USER_DATA, EXTENSION, SLICES...)
-		}
-	}
-};
-
-jsmpeg.prototype.scheduleNextFrame = function() {
-	this.lateTime = Date.now() - this.targetTime;
-	var wait = Math.max(0, (1000/this.pictureRate) - this.lateTime);
-	this.targetTime = Date.now() + wait;
-
-	if( wait < 18 ) {
-		this.scheduleAnimation();
-	}
-	else {
-		setTimeout( this.scheduleAnimation.bind(this), wait );
-	}
-};
-
-jsmpeg.prototype.scheduleAnimation = function() {
-	requestAnimFrame( this.nextFrame.bind(this), this.canvas );
-};
-	
-jsmpeg.prototype.decodeSequenceHeader = function() {
-	this.width = this.buffer.getBits(12);
-	this.height = this.buffer.getBits(12);
-
-	this.buffer.advance(4); // skip pixel aspect ratio
-	this.pictureRate = PICTURE_RATE[this.buffer.getBits(4)];
-	this.buffer.advance(18 + 1 + 10 + 1); // skip bitRate, marker, bufferSize and constrained bit
-
-	this.initBuffers();
-
-	if( this.buffer.getBits(1) ) { // load custom intra quant matrix?
-		for( var i = 0; i < 64; i++ ) {
-			this.customIntraQuantMatrix[ZIG_ZAG[i]] = this.buffer.getBits(8);
-		}
-		this.intraQuantMatrix = this.customIntraQuantMatrix;
-	}
-	
-	if( this.buffer.getBits(1) ) { // load custom non intra quant matrix?
-		for( var i = 0; i < 64; i++ ) {
-			this.customNonIntraQuantMatrix[ZIG_ZAG[i]] = this.buffer.getBits(8);
-		}
-		this.nonIntraQuantMatrix = this.customNonIntraQuantMatrix;
 	}
 };
 
@@ -261,8 +144,6 @@ jsmpeg.prototype.initBuffers = function() {
 	}
 	this.fillArray(this.currentRGBA.data, 255);
 };
-
-
 
 
 // ----------------------------------------------------------------------------
@@ -463,11 +344,8 @@ jsmpeg.prototype.YToRGBA = function() {
 };
 
 
-
-
 // ----------------------------------------------------------------------------
 // Slice Layer
-
 jsmpeg.prototype.quantizerScale = 0;
 jsmpeg.prototype.sliceBegin = false;
 
@@ -1198,12 +1076,7 @@ jsmpeg.prototype.IDCT = function() {
 // VLC Tables and Constants
 
 var
-	SOCKET_MAGIC_BYTES = 'jsmp',
 	DECODE_SKIP_OUTPUT = 1,
-	PICTURE_RATE = [
-		0.000, 23.976, 24.000, 25.000, 29.970, 30.000, 50.000, 59.940,
-		60.000,  0.000,  0.000,  0.000,  0.000,  0.000,  0.000,  0.000
-	],
 	ZIG_ZAG = new Uint8Array([
 		 0,  1,  8, 16,  9,  2,  3, 10,
 		17, 24, 32, 25, 18, 11,  4,  5,

@@ -1,4 +1,4 @@
-'use strict';
+(function(exports){'use strict';
 
 var msg = {
     HALT:  1,
@@ -142,7 +142,7 @@ VideoStream.prototype._init = function(sid, width, height) {
     this.sid     = sid;
     this.width   = width;
     this.height  = height;
-    this._mpeg   = new jsmpeg(this._canvas, width, height);
+    this._mpeg   = new MPEGDecoder(this._canvas, width, height);
     this._canvas.width  = width;
     this._canvas.height = height;
 }
@@ -156,8 +156,10 @@ VideoStream.prototype._onFrame = function(isKey, frame) {
             }
         }
     }
-    this._mpeg.receiveSocketMessage(frame);
+    this._mpeg.decodeFrame(frame);
 }
 
+exports.WStream = WStream;
 
+})(window);
 
