@@ -14,15 +14,15 @@ if env["PLATFORM"] == "posix":
 
 libs = Split("""
     c++
-    libzmq.a
-    libjson.a
-    libavutil.a
-    libswscale.a
-    libmsgpack.a
-    libavcodec.a
-    libavdevice.a
-    libavfilter.a
-    libavformat.a
+    zmq
+    json
+    avutil
+    swscale
+    msgpack
+    avcodec
+    avdevice
+    avfilter
+    avformat
 """)
 
 libDirs = []
