@@ -9,7 +9,7 @@ env = Environment(
         LD       = 'clang++',
 )
 
-if platform == "linux":
+if env["PLATFORM"] == "linux":
     env.Append(CCFLAGS = '-D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS')
 
 libs = Split("""
