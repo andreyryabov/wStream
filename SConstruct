@@ -11,15 +11,15 @@ env = Environment(
 
 libs = Split("""
     c++
-    zmq
-    json
-    avutil    
-    swscale
-    msgpack
-    avcodec
-    avdevice
-    avfilter
-    avformat
+    libzmq.a
+    libjson.a
+    libavutil.a
+    libswscale.a
+    libmsgpack.a
+    libavcodec.a
+    libavdevice.a
+    libavfilter.a
+    libavformat.a
 """)
 
 libDirs  = ['externals/lib/osx64']
