@@ -10,7 +10,7 @@ env = Environment(
 )
 
 if env["PLATFORM"] == "posix":
-    env.Append(CCFLAGS = '-D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS')
+    env.Append(CCFLAGS = ' -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS')
 
 libs = Split("""
     c++
@@ -25,7 +25,13 @@ libs = Split("""
     libavformat.a
 """)
 
-libDirs  = ['externals/lib/osx64']
+libDirs = []
+if env["PLATFORM"] == "darwin":
+    libDirs += ['externals/lib/osx64']
+    
+if env["PLATFORM"] == "posix":
+    libDirs += ['externals/lib/lin64']
+
 srcs     = Glob('src.trc/*.cpp') + Glob('externals/src/*.cpp')
 includes = ['externals/include']
 

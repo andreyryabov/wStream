@@ -26,6 +26,8 @@
 #include <iostream>
 #include <algorithm>
 #include <msgpack.hpp>
+#include <stdlib.h>
+#include <signal.h>
 #include "zmq.hpp"
 
 extern "C" {
