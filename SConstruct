@@ -9,6 +9,9 @@ env = Environment(
         LD       = 'clang++',
 )
 
+if platform == "linux":
+    env.Append(CCFLAGS = '-D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS')
+
 libs = Split("""
     c++
     libzmq.a

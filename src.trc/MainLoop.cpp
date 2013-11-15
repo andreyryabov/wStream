@@ -315,7 +315,7 @@ void MainLoop::fileStream(const string & fileName, const string & channel) {
                 if (ts0 == 0) {
                     ts0 = ts;
                 }
-                int pause = int(std::max(ts - ts0, 50LL));
+                int pause = int(std::max(ts - ts0, int64_t(50)));
                 usleep(pause * 1000);
                 ts0 = std::max(ts, int64_t(0));
                                 
