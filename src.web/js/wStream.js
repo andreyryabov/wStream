@@ -7,6 +7,8 @@ var msg = {
     FRAME: 4
 };
 
+var RECONNECT_TIMEOUT = 3000;
+
 function merge() {
     var result = {};
     for (var i = 0; i < arguments.length; i++ ) {
@@ -22,7 +24,26 @@ function WStream(url) {
     this._group       = null;
     this._name2str    = {};
     this._sid2str     = {};
+    this._socket      = false;
     this._isConnected = false;
+    this._closed      = false;
+    this._reconnect   = null;
+    this._videoTimer  = setInterval(function() {
+        
+    });
+}
+
+WStream.prototype.close = function() {
+    this._closed = true;
+    clearInterval(this._videoTimer);
+    if (this._socket) {
+        this._socket.close();
+        this._socket = null;
+    }
+    if (this._reconnect) {
+        clearTimeout(this._reconnect);
+        this._reconnect = null;
+    }
 }
 
 WStream.prototype.group = function(g, params) {
@@ -52,8 +73,11 @@ WStream.prototype.stream = function(name, canvas, params) {
     }
 }
 
-WStream.prototype.connect = function() {
+WStream.prototype._connect = function() {
     var self = this;
+    if (this._closed) {
+        return;
+    }
     console.log('wstream connecting to: ' + this._url);
     this._socket = new WebSocket(this._url);
     this._socket.binaryType = 'arraybuffer';
@@ -89,6 +113,16 @@ WStream.prototype.connect = function() {
             return;
         }
         return console.error('invalid message type', cmd);
+    }
+    this._socket.onclose = function(evt) {
+        if (self._closed) {
+            return;
+        }
+        console.log('socket error', evt);
+        self._isConnected = false;
+        if (!self._closed) {
+            setTimeout(function() { self._connect(); }, RECONNECT_TIMEOUT);
+        }
     }
 }
 
@@ -152,6 +186,7 @@ VideoStream.prototype._onFrame = function(isKey, frame) {
         if (isKey) {
             this.started = true;
             if (this.onStart) {
+                console.log('fire video started');
                 this.onStart(width, height);
             }
         }
@@ -159,7 +194,11 @@ VideoStream.prototype._onFrame = function(isKey, frame) {
     this._mpeg.decodeFrame(frame);
 }
 
-exports.WStream = WStream;
+exports.wconnect = function(url) {
+    var c = new WStream(url);
+    c._connect();
+    return c;
+}
 
 })(window);
 

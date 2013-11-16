@@ -56,7 +56,7 @@
 		764D60F1181FCCD400E9BAB4 /* Json.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Json.h; sourceTree = "<group>"; };
 		764D60F2181FD18600E9BAB4 /* MainLoop.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MainLoop.cpp; sourceTree = "<group>"; };
 		764D60F3181FD18600E9BAB4 /* MainLoop.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MainLoop.h; sourceTree = "<group>"; };
-		764D60F5182286CE00E9BAB4 /* mStream.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = mStream.js; sourceTree = "<group>"; };
+		764D60F5182286CE00E9BAB4 /* wStream.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = wStream.js; sourceTree = "<group>"; };
 		764D60F71822C39200E9BAB4 /* zmq.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = zmq.hpp; sourceTree = "<group>"; };
 		764D60F81823D61800E9BAB4 /* package.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = package.json; sourceTree = "<group>"; };
 		764D60F91823E55A00E9BAB4 /* mpack.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = mpack.js; sourceTree = "<group>"; };
@@ -137,7 +137,7 @@
 			children = (
 				764D60E3181A6D8200E9BAB4 /* mpeg.js */,
 				764D60FC1826C34200E9BAB4 /* msgpack.js */,
-				764D60F5182286CE00E9BAB4 /* mStream.js */,
+				764D60F5182286CE00E9BAB4 /* wStream.js */,
 			);
 			path = js;
 			sourceTree = "<group>";

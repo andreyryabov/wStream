@@ -7,20 +7,16 @@
         <canvas id="idStream2"></canvas>
         <canvas id="idStream3"></canvas>        
     
-        <script type="text/javascript" src="js/blanket.min.js"></script>
         <script type="text/javascript" src="js/mpeg.js" data-cover></script>
         <script type="text/javascript" src="js/msgpack.js"></script>
-        <script type="text/javascript" src="js/mStream.js"></script>
+        <script type="text/javascript" src="js/wStream.js"></script>
         <script type="text/javascript">
-
-            console.log('hello');
     
-            var streams = new WStream('ws://127.0.0.1:8105');
-            streams.connect();
-            streams.group('group0', {width: 400, height: 300, keyframeInterval: 30000, fps: 7});
-            streams.stream('file:../data/phone.flv',    document.getElementById('idStream1'), {bitrate:130000});
-            streams.stream('test',                      document.getElementById('idStream2'), {bitrate:130000});
-            //streams.stream('file:../data/46823549.mp4', document.getElementById('idStream3'), {bitrate:130000});
+            var streams = wconnect('ws://127.0.0.1:8105');
+            streams.group('group0', {width: 400, height: 300, keyframeInterval: 30000, fps: 6});
+            streams.stream('file:../data/phone.flv',    document.getElementById('idStream1'), {bitrate:30000});
+            streams.stream('test',                      document.getElementById('idStream2'), {bitrate:30000});
+            streams.stream('file:../data/46823549.mp4', document.getElementById('idStream3'), {bitrate:30000});
             
         </script>
     </body>
