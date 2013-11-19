@@ -63,6 +63,12 @@ Handler.prototype._group = function(cid, params) {
     }
     this._proc = pc.open(cid, params);
     var self = this;
+    this._proc.on('pause', function(sid) {
+        var pack = mpack.packer();
+        pack.put(msg.PAUSE);
+        pack.put(sid);
+        self._socket.send(pack.buffer());
+    });
     this._proc.on('frame', function(sid, key, frame) {
         if (self._dumpFiles) {
             var fbuf = new Buffer(frame);

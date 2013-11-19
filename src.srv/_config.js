@@ -14,6 +14,7 @@ exports.consts = {
         HALT:  1,
         JSON:  2,
         PING:  3,
-        FRAME: 4
+        FRAME: 4,
+        PAUSE: 6
     }
 }

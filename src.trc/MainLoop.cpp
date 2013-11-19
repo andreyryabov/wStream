@@ -70,11 +70,14 @@ ZAddr getEndpoint(zmq::socket_t & sock) {
 class Stream {
   public:
     int             sid;
+    bool            pause{true};
     Transcoder      trc;
+    Timestamp       lastDecoded;
     Timestamp       lastTs;
     Timestamp       lastKey;
     Timer::duration iFrameInterval;
     Timer::duration pFrameInterval;
+    Timer::duration pauseDelay;
     
     Stream(int s) : sid(s) {}
 };
@@ -181,6 +184,7 @@ void MainLoop::handleCommandJson(const Json::Value & json) {
         cfg.width   = stream["width"]  .asInt();
         cfg.height  = stream["height"] .asInt();
         cfg.bitrate = stream["bitrate"].asInt();
+        cfg.pauseDelay     = chrono::milliseconds(stream["pauseDelay"].asInt());
         cfg.pFrameInterval = chrono::milliseconds(int(1000 / stream["fps"].asDouble()));
         cfg.iFrameInterval = chrono::milliseconds(stream["keyframeInterval"].asInt());
         openStream(sid, name, cfg);
@@ -227,6 +231,7 @@ void MainLoop::openStream(int sid, const string & name, const StreamConfig & con
     _streams[name]->trc.initEncoder(conf);
     _streams[name]->iFrameInterval = conf.iFrameInterval;
     _streams[name]->pFrameInterval = conf.pFrameInterval;
+    _streams[name]->pauseDelay     = conf.pauseDelay;
     
     //_streams[name]->trc.dumpFile("../data/" + toStr(sid) + ".mpg");
 
@@ -365,6 +370,7 @@ void MainLoop::onMedia() {
             bool isKey = bUnp.get<bool>();
             object_raw raw = bUnp.get<object_raw>();
             if (it->second->trc.decode(raw.ptr, raw.size, isKey)) {
+                it->second->lastDecoded = Timer::now();
                 //Log<<"frame decoded: "<<raw.size<<", stream: "<<stream<<endl;
             }
         } else {
@@ -379,6 +385,21 @@ int MainLoop::transcode() {
     
     Timestamp now = Timer::now();
     for (auto it : _streams) {
+        Timer::duration fDif = now - it.second->lastDecoded;
+        if (fDif >= it.second->pauseDelay) {
+            if (it.second->pause) {
+                continue;
+            }
+            it.second->pause = true;
+            Packer pack;
+            pack.put(MSG_PAUSE);
+            pack.put(it.second->sid);
+            zmq::message_t msg = toZmsg(pack);
+            _pubSock.send(msg);
+            Log<<"pause stream, sid="<<it.second->sid<<endl;
+            continue;
+        }
+        
         bool keyframe = false;
         Timer::duration iDif = now - it.second->lastKey;
         if (iDif >= it.second->iFrameInterval) {
@@ -393,14 +414,17 @@ int MainLoop::transcode() {
         }
         if (keyframe) {
             it.second->trc.keyframe();
-            it.second->lastKey = now;
         }
         it.second->lastTs = now;
+        it.second->pause = false;
         
         bool isKey = false;
         const void * data = nullptr;
         size_t size = 0;
         if (it.second->trc.encode(data, size, isKey)) {
+            if (isKey) {
+               it.second->lastKey = now;
+            }
             Packer pack;
             pack.put(MSG_FRAME);
             pack.put(it.second->sid);

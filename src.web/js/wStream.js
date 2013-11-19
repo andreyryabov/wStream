@@ -4,7 +4,8 @@ var msg = {
     HALT:  1,
     JSON:  2,
     PING:  3,
-    FRAME: 4
+    FRAME: 4,
+    PAUSE: 6
 };
 
 var RECONNECT_TIMEOUT = 3000;
@@ -28,14 +29,11 @@ function WStream(url) {
     this._isConnected = false;
     this._closed      = false;
     this._reconnect   = null;
-    this._videoTimer  = setInterval(function() {
-        
-    });
+    var self = this;
 }
 
 WStream.prototype.close = function() {
     this._closed = true;
-    clearInterval(this._videoTimer);
     if (this._socket) {
         this._socket.close();
         this._socket = null;
@@ -47,7 +45,7 @@ WStream.prototype.close = function() {
 }
 
 WStream.prototype.group = function(g, params) {
-    this._groupParams = params || {width:144, height:108, fps:3, keyFrameIntervalMs:5000};
+    this._groupParams = params || {width:144, height:108, fps:7, keyframeIntervalMs:25000};
     if (this._group && this._group != g) {
         console.error('group is already set');
         return;
@@ -60,17 +58,24 @@ WStream.prototype.group = function(g, params) {
 
 WStream.prototype.stream = function(name, canvas, params) {
     if (!this._group) {
-        throw new Error('group is not set');
+        throw new Error('group is not open');
+    }
+    if (!name) {
+        throw new Error('strem name must not be null');
+    }
+    if (!canvas) {
+        throw new Error('canvas must not be null');
     }
     if (this._name2str[name]) {
         throw new Error('stream alreay open: ' + name);
-    }    
+    }
     var str = new VideoStream(name, canvas);
     str._params = merge(this._groupParams, params);    
     this._name2str[name] = str;
     if (this._isConnected) {
-        this._sendJson({stream: this._streams[i], params:str._params});
+        this._sendJson({stream: name, params:str._params});
     }
+    return str;
 }
 
 WStream.prototype._connect = function() {
@@ -112,6 +117,16 @@ WStream.prototype._connect = function() {
             }
             return;
         }
+        if (cmd == msg.PAUSE) {
+            var sid = dec.parse();
+            var str = self._sid2str[sid];
+            if (str) {
+                str._pause();
+            } else {
+                console.error('no such stream: ' + sid, self._sids);
+            }
+            return;
+        }
         return console.error('invalid message type', cmd);
     }
     this._socket.onclose = function(evt) {
@@ -141,7 +156,7 @@ WStream.prototype._handleJson = function(json) {
                 continue;
             }
             if (str.sid != streamData.sid) {
-                console.error('sid changed', str.sid, sid);
+                console.error('sid changed', str.sid, streamData.sid);
                 continue;
             }
         }
@@ -161,37 +176,55 @@ WStream.prototype.close = function() {
 }
 
 function VideoStream(name, canvas) {
-    this.name    = name;
-    this.sid     = null;
-    this.width   = null;
-    this.height  = null;
-    this._params = null;
-    this._canvas = canvas;
-    this._mpeg   = null;
-    this.onStart = null; // event on first key frame.
-    this.started = false;
+    this.name     = name;
+    this.sid      = null;
+    this.width    = null;
+    this.height   = null;
+    this._params  = null;
+    this._canvas  = canvas;
+    this._mpeg    = null;
+    this.onStart  = null; // event on first key frame.
+    this.onStop   = null;
+    this.started  = false;
+    this.playing  = false;
+    this._frameTs = 0;
 }
 
 VideoStream.prototype._init = function(sid, width, height) {
-    this.sid     = sid;
-    this.width   = width;
-    this.height  = height;
-    this._mpeg   = new MPEGDecoder(this._canvas, width, height);
+    this.sid    = sid;
+    this.width  = width;
+    this.height = height;
+    this._mpeg  = new MPEGDecoder(this._canvas, width, height);
     this._canvas.width  = width;
     this._canvas.height = height;
 }
 
 VideoStream.prototype._onFrame = function(isKey, frame) {
-    if (!this.started) {
-        if (isKey) {
-            this.started = true;
+    if (!this.started && isKey) {
+        this.started = true;
+    }
+    this._mpeg.decodeFrame(frame);
+    this._frameTs = new Date().getTime();
+    if (this.started) {
+        if (!this.playing) {
+            this.playing = true;
+            console.log('fire video.onStart: ' + this.name);
             if (this.onStart) {
-                console.log('fire video started');
-                this.onStart(width, height);
+                this.onStart(this._canvas);
             }
         }
     }
-    this._mpeg.decodeFrame(frame);
+}
+
+VideoStream.prototype._pause = function() {
+    if (!this.playing) {
+        return;
+    }
+    this.playing = false;
+    console.log('fire video.onStop: ' + this.name);
+    if (this.onStop) {
+        this.onStop();
+    }
 }
 
 exports.wconnect = function(url) {

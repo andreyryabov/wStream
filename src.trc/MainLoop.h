@@ -24,6 +24,7 @@ static const int MSG_JSON  = 2;
 static const int MSG_PING  = 3;
 static const int MSG_FRAME = 4;
 static const int MSG_CODEC = 5;
+static const int MSG_PAUSE = 6;
 
 using Timer = std::chrono::steady_clock;
 using Timestamp = Timer::time_point;
@@ -46,6 +47,7 @@ class ZAddr {
 
 class StreamConfig : public EncoderConfig {
   public:
+    Timer::duration pauseDelay     = std::chrono::milliseconds(1500);
     Timer::duration iFrameInterval = std::chrono::milliseconds(1000 * 5);
     Timer::duration pFrameInterval = std::chrono::milliseconds(1000 / 3);
 };

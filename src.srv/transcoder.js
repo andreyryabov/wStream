@@ -20,9 +20,10 @@ var DEFAULT_STREAM = {
       name: null,
      width: 144,
     height: 108,
-   bitrate: 70000,
-       fps: 3.5,
-   keyframeInterval: 5000
+   bitrate: 40000,
+       fps: 7,
+keyframeInterval: 5000,
+pauseDelay: 1500
 };
 
 function getAddressByInterface(name) {
@@ -201,6 +202,11 @@ Runtime.prototype.msg_started = function(obj) {
             self.emit('frame', sid, key, frame);
             return;
         }
+        if (cmd == msg.PAUSE) {
+            var sid = dat.get();
+            self.emit('pause', sid);
+            return;
+        }
         console.error('media socket, invalid command', cmd);
     });
 }
@@ -257,6 +263,12 @@ function Process(rt) {
         }
     };
     rt.on('frame', this._frameListener);
+    this._pauseListener = function(sid) {
+        if (self.sids[sid]) {
+            self.emit('pause', sid);
+        }
+    };
+    rt.on('pause', this._pauseListener);
 }
 
 util.inherits(Process, events.EventEmitter);
@@ -264,6 +276,7 @@ util.inherits(Process, events.EventEmitter);
 Process.prototype.close = function() {
     this._runtime._refs--;
     this._runtime.removeListener('frame', this._frameListener);
+    this._runtime.removeListener('pause', this._pauseListener);
     this.removeAllListeners();
 }
 
