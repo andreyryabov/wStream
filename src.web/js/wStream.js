@@ -20,6 +20,46 @@ function merge() {
     return result;
 }
 
+function Traffic(interval/* = 5*/, time/* = 60*/) {
+    this._interval  = (interval || 5);
+    this._maxLength = time / this._interval;
+    this._current = 0;
+    this._history = [];
+    this._timer   = setInterval(this._onTimer.bind(this), this._interval * 1000);
+}
+
+Traffic.prototype._onTimer = function() {
+    this._history.push(this._current);
+    this._current = 0;
+    while (this._history.length >= this._maxLength) {
+        this._history.shift();
+    }
+}
+
+Traffic.prototype.update = function(bytes) {
+    this._current += bytes;
+}
+
+Traffic.prototype.stop = function() {
+    clearInterval(this._timer);
+}
+
+Traffic.prototype.history = function() {
+    var res = this._history.slice(0);
+    for (var i = 0; i < res.length; i++ ) {
+        res[i] /= this._interval;
+    }
+    return res;
+}
+
+Traffic.prototype.average = function() {
+    var result = 0;
+    for (var i = 0; i < this._history.length; i++ ) {
+        result = this._history[i];
+    }
+    return result / (this._history.length * this._interval);
+}
+
 function WStream(url) {
     this._url         = url;
     this._group       = null;
@@ -29,11 +69,15 @@ function WStream(url) {
     this._isConnected = false;
     this._closed      = false;
     this._reconnect   = null;
-    var self = this;
+    this._traffic     = new Traffic(3, 30);
 }
 
 WStream.prototype.close = function() {
     this._closed = true;
+    if (this._timer) {
+        this._timer.close();
+        this._timer = null;
+    } 
     if (this._socket) {
         this._socket.close();
         this._socket = null;
@@ -97,6 +141,7 @@ WStream.prototype._connect = function() {
         }
     }
     this._socket.onmessage = function(evt) {
+        self._traffic.update(evt.data.byteLength);
         var dec = msgpack.decoder(evt.data);
         var cmd = dec.parse();
         if (cmd == msg.JSON) {

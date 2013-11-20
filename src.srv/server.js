@@ -12,7 +12,7 @@ function Handler(socket) {
     this._first  = true;
     this._socket = socket;
     this._socket.on('message', function(data) {
-        console.log('message', data);
+        console.log('message from client', data);
         try {
             var msg = JSON.parse(data);
             if (msg.group) {
@@ -25,6 +25,10 @@ function Handler(socket) {
             console.error('failed while handling message', data, e, e.stack);
             self._socket.close();
         }
+    });
+    this._socket.on('error', function(evt) {
+        console.log('socket error', evt);
+        self._cleanup();
     });
     this._socket.on('close', function() {
         console.log('socket closed');

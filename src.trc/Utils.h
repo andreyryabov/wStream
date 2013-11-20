@@ -12,7 +12,7 @@
 #include "Common.h"
 #include "Exception.h"
 
-#define EX(str) ((toStr(__FILE__) + ":" + toStr(__LINE__) + " [" + __PRETTY_FUNCTION__ + "] " + wStream::toStr(str)))
+#define EX(str) ((toStr(__FILE__) + ":" + toStr(__LINE__) + " [" + __PRETTY_FUNCTION__ + "] " + wStream::toStr(str)) + "\n" + wStream::backtrace())
 
 #define LOC ((toStr(__FILE__) + ":" + toStr(__LINE__) + " [" + toStr(__PRETTY_FUNCTION__) + "]\n> "))
 
