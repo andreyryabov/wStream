@@ -14,13 +14,12 @@ if env["PLATFORM"] == "posix":
 
 sLibs = Split("""
     zmq
-    avutil
-    swscale
     msgpack
-    avcodec
+    swscale
     avdevice
-    avfilter
-    avformat
+    avformat    
+    avcodec    
+    avutil
 """)
 
 sLibDir = "/usr/local/lib";
