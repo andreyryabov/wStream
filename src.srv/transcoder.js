@@ -26,6 +26,43 @@ keyframeInterval: 5000,
 pauseDelay: 1500
 };
 
+
+function selectBestInterface() {
+    var local  = null, localAddr  = null;
+    var global = null, globalAddr = null;
+    
+    var all = os.networkInterfaces();
+    for (var iface in all) {
+        if (iface.search('ppp') >= 0 || iface.search('vmnet') >= 0) {
+            continue;
+        }
+        var addrs = all[iface];
+        for (var i = 0; i < addrs.length; i++ ) {
+            if (addrs[i].family == 'IPv4') {
+                if (addrs[i].internal) {
+                    if (!local) {
+                        local = iface;
+                        localAddr = addrs[i].address;
+                    }
+                } else {
+                    if (!global) {
+                        global = iface;
+                        globalAddr = addrs[i].address;
+                    }
+                }
+            }
+        }       
+    }
+    if (global) {
+        return [global, globalAddr];
+    }
+    if (local) {
+        return [local, localAddr];
+    }
+    console.error('failed to find network interface', all);    
+    throw new Error('network interface not found');
+}
+
 function getAddressByInterface(name) {
     var iface = os.networkInterfaces()[name];
     if (!iface) {
@@ -61,7 +98,16 @@ var epRx     = /(\w{2,8}):\/\/([\d\w\.\/]+|\*):(\d+|\*)/;
 var lastEp   = pullSock.getsockopt(zmq.ZMQ_LAST_ENDPOINT);
 var rxRes    = epRx.exec(lastEp);
 
-var pullAddr = getAddressByInterface(conf.interface);
+var pullAddr = null;
+if (conf.interface == 'auto') {
+    var ia = selectBestInterface();
+    pullAddr = ia[1];
+    console.log('selected interface: ' + ia[0] + ' - ' + pullAddr);
+} else {
+    pullAddr = getAddressByInterface(conf.interface);
+    console.log('assigned interface: ' + conf.interface + ' - ' + pullAddr);
+}
+
 var pullPort = parseInt(rxRes[3]);
 var pullEndpoint = 'tcp://' + pullAddr + ':' + pullPort;
 

@@ -3,7 +3,7 @@
 exports.transcoder = {
     exec:            '/Users/RKK2/Library/Developer/Xcode/DerivedData/wStream-ggfijxbmdovottgyborpkszyibej/Build/Products/Debug/wStream',
     logDir:          'logs',
-    interface:       'lo0',
+    interface:       'auto',
     restartInterval:  5000,
     refcheckInterval: 5000,
     publishers:      ['tcp://127.0.0.1:58127']
