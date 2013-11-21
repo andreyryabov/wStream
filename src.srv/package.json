@@ -6,6 +6,7 @@
         "ws"       : "*",
         "zmq"      : "*",
         "msgpack"  : "git+https://github.com/andreyryabov/node-msgpack.git",
-        "process"  : "*"
+        "process"  : "*",
+	"underscore": "*"
     }
 }
