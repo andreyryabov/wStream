@@ -12,10 +12,8 @@ env = Environment(
 if env["PLATFORM"] == "posix":
     env.Append(CCFLAGS = ' -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS')
 
-libs = Split("""
-    c++
+sLibs = Split("""
     zmq
-    json
     avutil
     swscale
     msgpack
@@ -25,12 +23,16 @@ libs = Split("""
     avformat
 """)
 
-libDirs = []
+sLibDir = "/usr/local/lib";
+libs = [File(sLibDir + "/lib" + n + ".a") for n in sLibs]
+
 if env["PLATFORM"] == "darwin":
-    libDirs += ['externals/lib/osx64']
+    libs += [File("externals/lib/osx64" + "/libjson.a")]
     
 if env["PLATFORM"] == "posix":
-    libDirs += ['externals/lib/lin64']
+    libs += [File("externals/lib/lin64" + "/libjson.a")]
+
+libs += ["c++", "z", "bz2"]
 
 srcs     = Glob('src.trc/*.cpp') + Glob('externals/src/*.cpp')
 includes = ['externals/include']
@@ -38,6 +40,5 @@ includes = ['externals/include']
 env.Program('wstream', 
     srcs,
     LIBS    = libs,
-    LIBPATH = libDirs,
     CPPPATH = includes,
 )
